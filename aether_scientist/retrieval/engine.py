@@ -101,12 +101,25 @@ class RAGEngine:
         )
 
     def retrieve(self, query: str, k: int | None = None) -> list[Hit]:
-        """Retrieve top-k relevant chunks for a query."""
+        """Retrieve top-k relevant chunks for a query, deduplicated by (doc_id, chunk_id)."""
         target_k = k if k is not None else self.top_k
         query_vec = self.embedder.embed([query])
         if query_vec.shape[0] == 0:
             return []
-        return self.store.search(query_vec[0], k=target_k)
+        candidate_k = max(target_k * 4, len(self.store))
+        raw_hits = self.store.search(query_vec[0], k=candidate_k)
+
+        seen: set[tuple[str, str]] = set()
+        deduped: list[Hit] = []
+        for h in raw_hits:
+            cid = getattr(h.chunk, "chunk_id", str(getattr(h.chunk, "index", "")))
+            key = (h.doc_id, cid)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(h)
+                if len(deduped) == target_k:
+                    break
+        return deduped
 
     def _guard_citations(self, text: str, n_sources: int) -> tuple[str, bool]:
         valid = True
@@ -133,16 +146,23 @@ class RAGEngine:
     ) -> GroundedAnswer:
         """Generate an answer strictly grounded in retrieved evidence."""
         hits = self.retrieve(query, k=self.top_k)
-        sources: list[Source] = [
-            Source(
-                doc_id=h.doc_id,
-                title=h.title,
-                location=f"chunk_{h.chunk.index}",
-                snippet=h.chunk.text[:200],
-                score=round(h.score, 4),
-            )
-            for h in hits
-        ]
+        seen_srcs: set[tuple[str, str]] = set()
+        sources: list[Source] = []
+        for h in hits:
+            cid = getattr(h.chunk, "chunk_id", str(getattr(h.chunk, "index", "")))
+            key = (h.doc_id, cid)
+            if key not in seen_srcs:
+                seen_srcs.add(key)
+                sources.append(
+                    Source(
+                        doc_id=h.doc_id,
+                        title=h.title,
+                        location=f"chunk_{h.chunk.index}",
+                        snippet=h.chunk.text[:200],
+                        score=round(h.score, 4),
+                    )
+                )
+
 
         if not hits:
             return GroundedAnswer(
