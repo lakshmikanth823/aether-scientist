@@ -109,12 +109,14 @@ def analyze(
 
 @app.command()
 def ingest(
-    paths: list[str] = typer.Argument(...), as_json: bool = typer.Option(False, "--json")  # noqa: B008
+    paths: list[str] = typer.Argument(...),  # noqa: B008
+    rebuild: bool = typer.Option(False, "--rebuild", help="Wipe index before re-ingesting"),
+    as_json: bool = typer.Option(False, "--json"),
 ) -> None:
     """Ingest and index scientific documents into knowledge store."""
     try:
         sc = _scientist()
-        stats = sc.rag_engine.index(paths)
+        stats = sc.rag_engine.index(paths, force=rebuild)
         sc.rag_engine.store.save(Path(sc.config.rag.cache_dir) / "default_store")
         _output({
             "status": "indexed", "docs": stats.docs, "chunks": stats.chunks,

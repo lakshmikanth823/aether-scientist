@@ -63,8 +63,10 @@ class RAGEngine:
         self.overlap = getattr(config, "overlap", 64) if config else 64
         self.top_k = getattr(config, "top_k", 4) if config else 4
 
-    def index(self, paths: list[str]) -> IndexStats:
+    def index(self, paths: list[str], force: bool = False) -> IndexStats:
         """Ingest, chunk, embed, and store documents from given file paths."""
+        if force:
+            self.store.clear()
         t0 = time.perf_counter()
         total_docs = 0
         total_images = 0
@@ -101,7 +103,7 @@ class RAGEngine:
         )
 
     def retrieve(self, query: str, k: int | None = None) -> list[Hit]:
-        """Retrieve top-k relevant chunks for a query, deduplicated by (doc_id, chunk_id)."""
+        """Retrieve top-k relevant chunks, deduped by (doc_id, chunk_id) and content hash."""
         target_k = k if k is not None else self.top_k
         query_vec = self.embedder.embed([query])
         if query_vec.shape[0] == 0:
@@ -109,17 +111,32 @@ class RAGEngine:
         candidate_k = max(target_k * 4, len(self.store))
         raw_hits = self.store.search(query_vec[0], k=candidate_k)
 
+        # Phase 1: dedup by (doc_id, chunk_id)
         seen: set[tuple[str, str]] = set()
-        deduped: list[Hit] = []
+        phase1: list[Hit] = []
         for h in raw_hits:
             cid = getattr(h.chunk, "chunk_id", str(getattr(h.chunk, "index", "")))
             key = (h.doc_id, cid)
             if key not in seen:
                 seen.add(key)
+                phase1.append(h)
+
+        # Phase 2: dedup by whitespace-collapsed text hash, keep highest score
+        import hashlib
+
+        text_seen: dict[str, int] = {}
+        deduped: list[Hit] = []
+        for h in phase1:
+            th = hashlib.md5(" ".join(h.chunk.text.split()).encode()).hexdigest()
+            if th in text_seen:
+                idx = text_seen[th]
+                if h.score > deduped[idx].score:
+                    deduped[idx] = h
+            else:
+                text_seen[th] = len(deduped)
                 deduped.append(h)
-                if len(deduped) == target_k:
-                    break
-        return deduped
+
+        return deduped[:target_k]
 
     def _guard_citations(self, text: str, n_sources: int) -> tuple[str, bool]:
         valid = True
@@ -174,6 +191,16 @@ class RAGEngine:
 
         mean_score = float(np.mean([h.score for h in hits])) if hits else 0.0
         confidence = round(min(0.95, max(0.0, mean_score)), 4)
+
+        # Confidence gate: skip LLM if evidence quality is too low
+        if confidence < 0.35:
+            msg = f"Insufficient evidence in the indexed corpus (confidence {confidence:.2f})."
+            return GroundedAnswer(
+                answer=msg,
+                sources=sources,
+                confidence=confidence,
+                citations_valid=True,
+            )
 
         context_blocks = "\n\n".join(
             f"[{i + 1}] Source: {h.title or Path(h.source).name}\n{h.chunk.text}"

@@ -1,3 +1,4 @@
+import hashlib
 import re
 from dataclasses import dataclass
 
@@ -68,4 +69,13 @@ def chunk(text: str, size: int = 512, overlap: int = 64, doc_id: str = "") -> li
         cid = f"{doc_id}_{idx}" if doc_id else str(idx)
         chunks.append(Chunk(chunk_id=cid, doc_id=doc_id, text=chunk_text, index=idx))
 
-    return chunks
+    # Content-level dedup: drop chunks with identical whitespace-collapsed text
+    seen_hashes: set[str] = set()
+    unique: list[Chunk] = []
+    for c in chunks:
+        h = hashlib.md5(" ".join(c.text.split()).encode()).hexdigest()
+        if h not in seen_hashes:
+            seen_hashes.add(h)
+            unique.append(c)
+
+    return unique
