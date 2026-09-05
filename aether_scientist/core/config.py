@@ -14,6 +14,14 @@ class EfficiencyConfig(BaseModel):
     compile_model: bool = False
 
 
+class RagConfig(BaseModel):
+    chunk_size: int = 512
+    overlap: int = 64
+    top_k: int = 4
+    backend: str = "auto"
+    cache_dir: str = ".aether_cache"
+
+
 class AetherConfig(BaseModel):
     model_name: str = "distilgpt2"
     model_size: str = "82M"
@@ -31,3 +39,4 @@ class AetherConfig(BaseModel):
     api_rate_limit: int = 60  # requests per minute
     tokenizer: TokenizerConfig = Field(default_factory=TokenizerConfig)
     efficiency: EfficiencyConfig = Field(default_factory=EfficiencyConfig)
+    rag: RagConfig = Field(default_factory=RagConfig)

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 from aether_scientist.core.config import AetherConfig
@@ -6,6 +7,7 @@ from aether_scientist.core.inference import InferenceEngine
 from aether_scientist.core.tokenizer import ScientificTokenizer
 from aether_scientist.domains import load_adapter
 from aether_scientist.domains.base import DomainAdapter
+from aether_scientist.retrieval.engine import RAGEngine
 from aether_scientist.utils.efficiency import EfficiencyOptimizer
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,13 @@ class AetherScientist:
             cache_enabled=self.config.cache_enabled,
             cache_size=self.config.cache_size,
         )
+        self.rag_engine: RAGEngine = RAGEngine(config=self.config.rag)
+        default_store = Path(self.config.rag.cache_dir) / "default_store"
+        if default_store.with_suffix(".npz").exists():
+            try:
+                self.rag_engine.store.load(default_store)
+            except Exception as e:
+                logger.warning(f"Could not load default vector store: {e}")
         self._is_active: bool = False
 
     def _load_adapters(self) -> dict[str, DomainAdapter]:
@@ -72,7 +81,12 @@ class AetherScientist:
         best_domain = max(domain_scores.items(), key=lambda item: item[1])[0]
         return best_domain if domain_scores[best_domain] > 0 else self.active_domains[0]
 
-    def analyze(self, query: str, papers: list[str] | None = None) -> dict[str, Any]:
+    def analyze(
+        self,
+        query: str,
+        papers: list[str] | None = None,
+        use_rag: bool = False,
+    ) -> dict[str, Any]:
         """Single entry point for analyzing a scientific query."""
         papers = papers or []
         domain: str = self._detect_domain(query)
@@ -83,22 +97,46 @@ class AetherScientist:
         query_tokens = self.tokenizer.encode(query)
         domain_result = adapter.process(query_tokens, papers)
 
-        # Build domain-specific prompt and generate
-        prompt = f"{adapter.system_prompt()}\n\nQuestion: {query}\n\nAnswer:"
-        generation = InferenceEngine.generate(
-            prompt=prompt,
-            model_name=self.config.model_name,
-            max_new_tokens=self.config.max_new_tokens,
-            temperature=self.config.temperature,
-        )
+        if use_rag and len(self.rag_engine.store) > 0:
+            grounded = self.rag_engine.grounded_generate(
+                query=query,
+                domain=domain,
+                system_prompt=adapter.system_prompt(),
+                model_name=self.config.model_name,
+            )
+            result = {
+                "analysis": domain_result.analysis,
+                "confidence": grounded.confidence,
+                "reasoning_chain": domain_result.reasoning_chain,
+                "generated_text": grounded.answer,
+                "sources": [
+                    {
+                        "doc_id": s.doc_id,
+                        "title": s.title,
+                        "snippet": s.snippet,
+                        "score": s.score,
+                    }
+                    for s in grounded.sources
+                ],
+                "citations_valid": grounded.citations_valid,
+            }
+        else:
+            prompt = f"{adapter.system_prompt()}\n\nQuestion: {query}\n\nAnswer:"
+            generation = InferenceEngine.generate(
+                prompt=prompt,
+                model_name=self.config.model_name,
+                max_new_tokens=self.config.max_new_tokens,
+                temperature=self.config.temperature,
+            )
 
-        result = {
-            "analysis": domain_result.analysis,
-            "confidence": domain_result.confidence,
-            "reasoning_chain": domain_result.reasoning_chain,
-            "generated_text": generation["text"],
-            "generation_metadata": generation,
-        }
+            result = {
+                "analysis": domain_result.analysis,
+                "confidence": domain_result.confidence,
+                "reasoning_chain": domain_result.reasoning_chain,
+                "generated_text": generation["text"],
+                "sources": [],
+                "generation_metadata": generation,
+            }
 
         if papers:
             synthesis = self.synthesize_papers(papers, domain)
