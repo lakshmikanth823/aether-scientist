@@ -5,13 +5,17 @@ from typing import Any
 def extract_topic(question: str) -> str:
     """Extract the core research subject by stripping question words and punctuation."""
     q = question.strip()
-    prefix_pattern = (
-        r"^(what\s+is|what\s+are|what|how\s+does|how\s+do|how|why\s+is|"
-        r"why\s+are|why|which|when|where|is|are|do|does|can|could)\b\s*"
-    )
+    # 1. Cut at second clause: and what|and how|and why|and which|or what
+    q = re.split(r"(?i)\s+(?:and\s+(?:what|how|why|which)|or\s+what)\b", q)[0]
+    # 2. Strip leading question words and auxiliaries
+    prefix_pattern = r"^(?:(?:what|how|why|which|when|where|is|are|do|does|did|can|could)\b\s*)+"
     topic = re.sub(prefix_pattern, "", q, flags=re.IGNORECASE).strip()
+    # 3. Strip trailing punctuation
     topic = re.sub(r"[\?\.\!]+$", "", topic).strip()
-    topic = re.sub(r"\s+", " ", topic)
+    # 4. Strip trailing lone verbs
+    topic = re.sub(r"\b(?:work|works|mean|means)\b\s*$", "", topic, flags=re.IGNORECASE).strip()
+    # 5. Collapse whitespace
+    topic = re.sub(r"\s+", " ", topic).strip()
     return topic
 
 

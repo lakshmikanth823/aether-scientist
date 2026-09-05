@@ -187,6 +187,11 @@ class ResearchAgent:
                     for c in re.findall(r"\[(\d+)\]", text)
                     if int(c) in assigned_indices
                 ]
+                if not cites and assigned_indices:
+                    backfill_str = ", ".join(f"[{idx}]" for idx in assigned_indices)
+                    text = f"{text} (sources: {backfill_str})"
+                    cites = list(assigned_indices)
+
                 state.findings.append(
                     {"sub_query": sq, "text": text, "citations": sorted(set(cites))}
                 )
