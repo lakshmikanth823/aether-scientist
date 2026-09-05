@@ -1,17 +1,35 @@
 # AetherScientist
 
-Domain-specialized multimodal LLM framework for scientific research.
+Domain-specialized scientific research LLM framework with RAG, citation grounding, and live streaming.
 
+[![PyPI version](https://img.shields.io/pypi/v/aether-scientist.svg)](https://pypi.org/project/aether-scientist/)
 [![CI](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml/badge.svg)](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/aetherscientist/aether-scientist)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://pypi.org/project/aether-scientist/)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://pypi.org/project/aether-scientist/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/aetherscientist/aether-scientist)
 
-## ⚡ Quick Start
+## 📦 Installation
 
 ```bash
+# Core installation (zero-dependency TF-IDF retrieval + CLI + API)
+pip install aether-scientist
+
+# With optional SBERT embeddings and PDF ingestion support
+pip install "aether-scientist[rag]"
+
+# Development setup with test suite and linters
 pip install -e ".[dev,rag]"
 ```
+
+Docker one-liner:
+```bash
+docker run --rm -it -v $(pwd)/models:/models aether ask "What is entropy?" --domain physics
+```
+
+## 🔑 Environment Variables
+
+- `AETHER_API_KEY`: API authentication key for FastAPI endpoints (defaults to `dev-aether-key` for local development).
+- `HF_HOME`: Directory for caching model weights (default: `~/.cache/huggingface`).
 
 ## 💻 CLI Usage
 
@@ -37,6 +55,8 @@ aether domains && aether info
 Start server:
 ```bash
 python -m aether_scientist.api
+# Or via uvicorn:
+uvicorn aether_scientist.api.endpoints:app --host 0.0.0.0 --port 8000
 ```
 
 Live Server-Sent Events (SSE) token stream:
@@ -74,5 +94,6 @@ curl http://localhost:8000/health
 
 ## 📜 Contributing & License
 
-- Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`
-- Licensed under the MIT License.
+- Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`
+- Full details in [CHANGELOG.md](CHANGELOG.md).
+- Licensed under the [MIT License](LICENSE).
