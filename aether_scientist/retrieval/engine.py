@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 
-from aether_scientist.core.inference import InferenceEngine
 from aether_scientist.retrieval.chunker import chunk
 from aether_scientist.retrieval.embeddings import EmbeddingEngine
 from aether_scientist.retrieval.ingest import ingest_file
@@ -38,6 +37,12 @@ class IndexStats:
     docs: int
     chunks: int
     elapsed_seconds: float
+    images_extracted: int = 0
+    captions_generated: int = 0
+
+
+# Alias for backwards compatibility
+IngestStats = IndexStats
 
 
 class RAGEngine:
@@ -62,14 +67,20 @@ class RAGEngine:
         """Ingest, chunk, embed, and store documents from given file paths."""
         t0 = time.perf_counter()
         total_docs = 0
+        total_images = 0
+        total_captions = 0
         all_chunks = []
         all_sources = []
         all_titles = []
 
+        cfg = self.config
+        cache_dir = getattr(cfg, "cache_dir", ".aether_cache") if cfg else ".aether_cache"
         for p in paths:
-            docs = ingest_file(p)
+            docs = ingest_file(p, cache_dir=cache_dir)
             total_docs += len(docs)
             for d in docs:
+                total_images += len(getattr(d, "images", []))
+                total_captions += len(getattr(d, "captions", []))
                 c_list = chunk(d.text, size=self.chunk_size, overlap=self.overlap, doc_id=d.doc_id)
                 for c in c_list:
                     all_chunks.append(c)
@@ -81,7 +92,13 @@ class RAGEngine:
             self.store.add(all_chunks, vectors, sources=all_sources, titles=all_titles)
 
         elapsed = round(time.perf_counter() - t0, 3)
-        return IndexStats(docs=total_docs, chunks=len(all_chunks), elapsed_seconds=elapsed)
+        return IndexStats(
+            docs=total_docs,
+            chunks=len(all_chunks),
+            elapsed_seconds=elapsed,
+            images_extracted=total_images,
+            captions_generated=total_captions,
+        )
 
     def retrieve(self, query: str, k: int | None = None) -> list[Hit]:
         """Retrieve top-k relevant chunks for a query."""
@@ -152,6 +169,8 @@ class RAGEngine:
             f"- Cite each statement with its source index in brackets, e.g. [1].\n"
             f"- If the context lacks information, state 'insufficient evidence'."
         )
+
+        from aether_scientist.core.inference import InferenceEngine
 
         gen = InferenceEngine.generate(
             system_prompt=system_instructions,

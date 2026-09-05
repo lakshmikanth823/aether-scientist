@@ -1,6 +1,13 @@
 from aether_scientist.retrieval.chunker import Chunk, chunk
 from aether_scientist.retrieval.embeddings import EmbeddingEngine
-from aether_scientist.retrieval.engine import GroundedAnswer, IndexStats, RAGEngine, Source
+from aether_scientist.retrieval.engine import (
+    GroundedAnswer,
+    IndexStats,
+    IngestStats,
+    RAGEngine,
+    Source,
+)
+from aether_scientist.retrieval.images import ImageAsset, extract_images
 from aether_scientist.retrieval.ingest import Document, ingest_file
 from aether_scientist.retrieval.store import Hit, VectorStore
 from aether_scientist.retrieval.web_ingest import clean_html, fetch_and_chunk, fetch_url
@@ -12,7 +19,9 @@ __all__ = [
     "EmbeddingEngine",
     "GroundedAnswer",
     "Hit",
+    "ImageAsset",
     "IndexStats",
+    "IngestStats",
     "RAGEngine",
     "Source",
     "VectorStore",
@@ -20,6 +29,7 @@ __all__ = [
     "WebSearchEngine",
     "chunk",
     "clean_html",
+    "extract_images",
     "fetch_and_chunk",
     "fetch_url",
     "ingest_file",
