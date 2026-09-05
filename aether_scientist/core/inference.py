@@ -80,10 +80,12 @@ class InferenceEngine:
         return cls._pipe
 
     @classmethod
-    def _clean(cls, text: str, tokenizer: Any = None) -> str:
-        """Clean output text by cutting at stop markers."""
+    def _clean(
+        cls, text: str, tokenizer: Any = None, profile_name: str = "offline"
+    ) -> str:
+        """Clean output text by cutting at stop markers and degenerate loops."""
         markers = get_stop_markers(tokenizer)
-        return clean_output(text, markers)
+        return clean_output(text, markers, profile_name=profile_name)
 
     @classmethod
     def generate(
@@ -136,7 +138,8 @@ class InferenceEngine:
                 return_full_text=False,
             )
             raw_text = outputs[0]["generated_text"]
-            text = cls._clean(raw_text, tokenizer)
+            text = cls._clean(raw_text, tokenizer, profile_name=profile_name)
+
             elapsed = time.perf_counter() - start
             return {
                 "text": text,
