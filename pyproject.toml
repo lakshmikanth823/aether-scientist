@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aether-scientist"
-version = "1.5.0"
+version = "1.6.0"
 description = "Domain-specialized scientific research LLM with RAG, citation grounding, and streaming"
 requires-python = ">=3.10"
 readme = "README.md"
@@ -34,10 +34,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ui = [
+    "streamlit>=1.30",
+]
 vision = [
     "Pillow>=10.0",
     "transformers>=4.30",
 ]
+
 finetune = [
     "peft>=0.7",
     "trl>=0.8",
@@ -74,7 +78,8 @@ aether = "aether_scientist.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aether_scientist*"]
+include = ["aether_scientist*", "ui*"]
+
 
 [tool.setuptools.package-data]
 aether_scientist = ["benchmarks/data/*.json"]
