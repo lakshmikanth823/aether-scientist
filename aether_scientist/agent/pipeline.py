@@ -10,6 +10,8 @@ from aether_scientist.agent.state import ResearchState
 from aether_scientist.core.config import AetherConfig
 from aether_scientist.core.inference import InferenceEngine
 from aether_scientist.core.model import AetherScientist
+from aether_scientist.retrieval.web_ingest import fetch_and_chunk
+from aether_scientist.retrieval.web_search import WebSearchEngine
 
 
 @dataclass
@@ -46,6 +48,7 @@ class ResearchAgent:
         self.config: AetherConfig = config or AetherConfig()
         self.scientist: AetherScientist = AetherScientist(self.config)
         self.rag_engine = self.scientist.rag_engine
+        self.web_search = WebSearchEngine()
 
     def run(
         self,
@@ -53,10 +56,15 @@ class ResearchAgent:
         k: int = 3,
         use_llm_planner: bool = False,
         profile: str | None = None,
+        use_web: bool = False,
     ) -> ResearchResult:
         """Execute complete multi-step autonomous research pipeline."""
         for event in self.stream(
-            question=question, k=k, use_llm_planner=use_llm_planner, profile=profile
+            question=question,
+            k=k,
+            use_llm_planner=use_llm_planner,
+            profile=profile,
+            use_web=use_web,
         ):
             if event.get("event") == "result":
                 return event["result_object"]
@@ -68,9 +76,10 @@ class ResearchAgent:
         k: int = 3,
         use_llm_planner: bool = False,
         profile: str | None = None,
+        use_web: bool = False,
     ) -> Generator[dict[str, Any], None, None]:
         """Stream step progression events and yield final research report."""
-        if len(self.rag_engine.store) == 0:
+        if len(self.rag_engine.store) == 0 and not use_web:
             raise IndexError("No documents indexed. Run: aether ingest <paths>")
 
         target_prof = profile or self.config.profile
@@ -94,8 +103,39 @@ class ResearchAgent:
                 "description": f"Retrieving: {sq}",
             }
             state.record("retrieve", f"Retrieving literature for: {sq}")
-            hits = self.rag_engine.retrieve(sq, k=k)
-            assigned_indices = state.add_sources(hits)
+            local_hits = (
+                self.rag_engine.retrieve(sq, k=k) if len(self.rag_engine.store) > 0 else []
+            )
+            local_score = (
+                float(sum(h.score for h in local_hits) / len(local_hits)) if local_hits else 0.0
+            )
+
+            web_hits_data = []
+            if use_web or (local_score < 0.5 and len(local_hits) == 0 and use_web is not False):
+                wh_results = self.web_search.search(sq, max_results=k)
+                if wh_results:
+                    urls = [wh.url for wh in wh_results if wh.url]
+                    web_chunks = fetch_and_chunk(urls)
+                    for c in web_chunks[:k]:
+                        wh_title = next(
+                            (wh.title for wh in wh_results if wh.url == c.doc_id), "Web Source"
+                        )
+                        web_hits_data.append(
+                            {
+                                "doc_id": c.doc_id,
+                                "chunk_id": c.index,
+                                "title": f"[web] {wh_title}",
+                                "source": c.doc_id,
+                                "snippet": c.text[:200],
+                                "chunk": c,
+                                "score": 0.85,
+                            }
+                        )
+
+            total_items = list(local_hits) + web_hits_data
+            assigned_local = state.add_sources(local_hits) if local_hits else []
+            assigned_web = state.add_sources(web_hits_data) if web_hits_data else []
+            assigned_indices = assigned_local + assigned_web
 
             yield {
                 "event": "step",
@@ -105,7 +145,7 @@ class ResearchAgent:
             }
             state.record("synthesize", f"Synthesizing findings for: {sq}")
 
-            if not hits:
+            if not total_items:
                 state.findings.append(
                     {
                         "sub_query": sq,
@@ -115,10 +155,15 @@ class ResearchAgent:
                 )
             else:
                 ctx_items = []
-                for i, h in enumerate(hits):
-                    title = getattr(h, "title", "") or Path(getattr(h, "source", "")).name
-                    chunk = getattr(h, "chunk", None)
-                    chunk_text = getattr(chunk, "text", str(h))
+                for i, item in enumerate(total_items):
+                    if isinstance(item, dict):
+                        title = item.get("title", "")
+                        chunk_obj = item.get("chunk")
+                        chunk_text = getattr(chunk_obj, "text", item.get("snippet", ""))
+                    else:
+                        title = getattr(item, "title", "") or Path(getattr(item, "source", "")).name
+                        chunk_obj = getattr(item, "chunk", None)
+                        chunk_text = getattr(chunk_obj, "text", str(item))
                     ctx_items.append(f"[{assigned_indices[i]}] Source: {title}\n{chunk_text}")
 
                 context_blocks = "\n\n".join(ctx_items)
