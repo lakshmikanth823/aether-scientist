@@ -59,13 +59,16 @@ def test_fetch_and_chunk_produces_chunks(monkeypatch):
       <body>
         <article>
           <h1>CRISPR Mechanics</h1>
-          <p>CRISPR-Cas9 is a targeted genome editing technique discovered in bacterial immune systems.</p>
-          <p>The guide RNA directs Cas9 to cleave matching double-stranded DNA sequences.</p>
+          <p>CRISPR-Cas9 is a targeted genome editing technique.</p>
+          <p>The guide RNA directs Cas9 to cleave matching DNA sequences.</p>
         </article>
       </body>
     </html>
     """
-    monkeypatch.setattr("aether_scientist.retrieval.web_ingest.fetch_url", lambda url, **kwargs: html_page)
+    monkeypatch.setattr(
+        "aether_scientist.retrieval.web_ingest.fetch_url",
+        lambda url, **kwargs: html_page,
+    )
 
     urls = ["https://science.org/crispr-mechanics"]
     chunks = fetch_and_chunk(urls, size=80, overlap=20)

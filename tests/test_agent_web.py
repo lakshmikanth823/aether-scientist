@@ -29,7 +29,7 @@ def test_agent_web_fallback_when_store_empty(monkeypatch, tmp_path):
         Chunk(
             chunk_id="chunk_0",
             doc_id="https://nature.com/articles/fusion-net-gain",
-            text="Net energy gain in magnetic confinement tokamak achieved with high plasma pressure.",
+            text="Net energy gain in tokamak achieved with high plasma pressure.",
             index=0,
         )
     ]
@@ -70,9 +70,16 @@ def test_agent_fails_when_store_empty_and_no_web(tmp_path):
 
 
 def test_cli_research_with_web_flag(monkeypatch, tmp_path):
-    fake_hits = [WebHit(title="Superconductors", url="https://arxiv.org/abs/sc", snippet="High-Tc")]
+    fake_hits = [
+        WebHit(title="Superconductors", url="https://arxiv.org/abs/sc", snippet="High-Tc")
+    ]
     fake_chunks = [
-        Chunk(chunk_id="c0", doc_id="https://arxiv.org/abs/sc", text="High-Tc superconductor.", index=0)
+        Chunk(
+            chunk_id="c0",
+            doc_id="https://arxiv.org/abs/sc",
+            text="High-Tc superconductor.",
+            index=0,
+        )
     ]
 
     monkeypatch.setattr(
@@ -101,9 +108,16 @@ def test_cli_research_with_web_flag(monkeypatch, tmp_path):
 
 
 def test_api_research_with_web_field(monkeypatch):
-    fake_hits = [WebHit(title="Graphene", url="https://materials.org/graphene", snippet="2D carbon")]
+    fake_hits = [
+        WebHit(title="Graphene", url="https://materials.org/graphene", snippet="2D carbon")
+    ]
     fake_chunks = [
-        Chunk(chunk_id="c0", doc_id="https://materials.org/graphene", text="Graphene 2D lattice.", index=0)
+        Chunk(
+            chunk_id="c0",
+            doc_id="https://materials.org/graphene",
+            text="Graphene 2D lattice.",
+            index=0,
+        )
     ]
 
     monkeypatch.setattr(

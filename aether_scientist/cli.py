@@ -9,12 +9,11 @@ app = typer.Typer(
 
 
 def _output(data: dict, as_json: bool = False) -> None:
-    out = (
+    typer.echo(
         json.dumps(data, indent=2)
         if as_json
         else "\n".join(f"  {k}: {v}" for k, v in data.items())
     )
-    typer.echo(out)
 
 
 def _err(e: Exception, code: int = 1) -> None:
@@ -33,8 +32,10 @@ def ask(
     domain: str = typer.Option("auto", "-d", "--domain"),
     model: str = typer.Option("distilgpt2", "-m", "--model"),
     profile: str = typer.Option(None, "-p", "--profile"),
-    as_json: bool = typer.Option(False, "--json"), max_tokens: int = typer.Option(256, "--max-tokens"),
-    stream: bool = typer.Option(False, "--stream"), use_rag: bool = typer.Option(False, "--rag"),
+    as_json: bool = typer.Option(False, "--json"),
+    max_tokens: int = typer.Option(256, "--max-tokens"),
+    stream: bool = typer.Option(False, "--stream"),
+    use_rag: bool = typer.Option(False, "--rag"),
     use_web: bool = typer.Option(False, "--web"),
 ) -> None:
     """Ask a scientific question and get an AI-generated answer."""
@@ -107,7 +108,7 @@ def search(
     try:
         hits = _scientist().rag_engine.retrieve(query, k=k)
         res = [
-            {"score": round(h.score, 4), "title": h.title, "snippet": h.chunk.text[:140]}
+            {"score": round(h.score, 4), "title": h.title, "snippet": h.chunk.text[:120]}
             for h in hits
         ]
         _output({"query": query, "hits": res}, as_json)
@@ -142,7 +143,8 @@ def bench(
 def research(
     question: str = typer.Argument(...), profile: str = typer.Option(None, "-p", "--profile"),
     k: int = typer.Option(3, "-k"), as_json: bool = typer.Option(False, "--json"),
-    out: Path = typer.Option(None, "-o", "--out"), llm_planner: bool = typer.Option(False, "--llm-planner"),  # noqa: B008
+    out: Path = typer.Option(None, "-o", "--out"),  # noqa: B008
+    llm_planner: bool = typer.Option(False, "--llm-planner"),
     use_web: bool = typer.Option(False, "--web"),
 ) -> None:
     """Run autonomous multi-step research inquiry and generate cited report."""

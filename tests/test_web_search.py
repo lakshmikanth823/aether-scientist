@@ -11,13 +11,13 @@ def test_web_search_ddg_mock(monkeypatch):
               <h2 class="result__title">
                 <a href="https://example.com/crispr">CRISPR Gene Editing Overview</a>
               </h2>
-              <a class="result__snippet">CRISPR is a technology that allows geneticists to edit parts of the genome.</a>
+              <a class="result__snippet">CRISPR allows geneticists to edit genomes.</a>
             </div>
             <div class="result">
               <h2 class="result__title">
                 <a href="https://example.com/cas9">Cas9 Nuclease Mechanisms</a>
               </h2>
-              <a class="result__snippet">Cas9 functions as a molecular pair of scissors guided by RNA.</a>
+              <a class="result__snippet">Cas9 functions as scissors guided by RNA.</a>
             </div>
           </body>
         </html>
