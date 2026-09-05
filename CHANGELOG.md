@@ -3,7 +3,19 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.6.0] - 2026-09-05
+
+### Added
+- Streamlit interactive web interface with sidebar navigation router in `ui/app.py`
+- Direct scientific chat view with real-time token streaming and model profile selection in `ui/views/chat.py`
+- Knowledge base manager with document ingestion (PDF, TXT, MD) and grounded RAG query in `ui/views/knowledge.py`
+- Autonomous research agent dashboard with live step execution tracking in `ui/views/research.py`
+- Vision diagram tool with figure upload and VLM caption generation in `ui/views/vision.py`
+- Optional `[ui]` extras group in `pyproject.toml` (`streamlit>=1.30`)
+- 100% offline Streamlit `AppTest` suite covering all UI views and engine caching
+
 ## [1.5.0] - 2026-09-05
+
 
 ### Added
 - PDF embedded image extraction pipeline using PyMuPDF (`fitz`) in `retrieval/images.py`

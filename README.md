@@ -216,10 +216,18 @@ caption = CaptionEngine().caption("diagram.png")
 print("Caption:", caption)
 ```
 
+## 🌐 Interactive Web Interface
+
+Launch the interactive Streamlit web dashboard for chat, RAG document indexing, live agent execution tracking, and diagram understanding:
+
+```bash
+pip install "aether-scientist[ui]"
+streamlit run ui/app.py
+```
+> ![AetherScientist Web UI](docs/assets/ui-screenshot.png)
+
 ## 📜 Contributing & License
 
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`
 - Full details in [CHANGELOG.md](CHANGELOG.md).
 - Licensed under the [MIT License](LICENSE).
-
-
