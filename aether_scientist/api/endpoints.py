@@ -45,6 +45,7 @@ class AnalyzeRequest(BaseModel):
     query: str
     papers: list[str] | None = Field(default_factory=list)
     profile: str | None = None
+    use_web: bool = False
 
 
 class ResearchRequest(BaseModel):
@@ -52,6 +53,7 @@ class ResearchRequest(BaseModel):
     profile: str | None = None
     k: int = 3
     use_llm_planner: bool = False
+    use_web: bool = False
 
 
 class SynthesizeRequest(BaseModel):
@@ -143,7 +145,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
             _scientist.config.profile = target_prof
             _scientist.profile = resolve(target_prof)
             try:
-                res = _scientist.analyze(req.query, papers=req.papers)
+                res = _scientist.analyze(req.query, papers=req.papers, use_web=req.use_web)
             finally:
                 _scientist.config.profile = original_prof
                 _scientist.profile = resolve(original_prof)
@@ -200,7 +202,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
         from aether_scientist.core.config import AetherConfig
 
         agent = ResearchAgent(AetherConfig(profile=target_prof))
-        if len(agent.rag_engine.store) == 0:
+        if len(agent.rag_engine.store) == 0 and not req.use_web:
             raise HTTPException(
                 status_code=409, detail="No documents indexed. Run: aether ingest <paths>"
             )
@@ -210,6 +212,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
                 k=req.k,
                 use_llm_planner=req.use_llm_planner,
                 profile=target_prof,
+                use_web=req.use_web,
             )
             return APIResponse(status="success", data=res.to_dict())
         except IndexError as e:
@@ -222,7 +225,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
         from aether_scientist.core.config import AetherConfig
 
         agent = ResearchAgent(AetherConfig(profile=target_prof))
-        if len(agent.rag_engine.store) == 0:
+        if len(agent.rag_engine.store) == 0 and not req.use_web:
             raise HTTPException(
                 status_code=409, detail="No documents indexed. Run: aether ingest <paths>"
             )
@@ -233,6 +236,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
                 k=req.k,
                 use_llm_planner=req.use_llm_planner,
                 profile=target_prof,
+                use_web=req.use_web,
             ):
                 event_type = event.get("event", "step")
                 clean_event = {k: v for k, v in event.items() if k != "result_object"}

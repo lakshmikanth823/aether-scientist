@@ -33,10 +33,9 @@ def ask(
     domain: str = typer.Option("auto", "-d", "--domain"),
     model: str = typer.Option("distilgpt2", "-m", "--model"),
     profile: str = typer.Option(None, "-p", "--profile"),
-    as_json: bool = typer.Option(False, "--json"),
-    max_tokens: int = typer.Option(256, "--max-tokens"),
-    stream: bool = typer.Option(False, "--stream"),
-    use_rag: bool = typer.Option(False, "--rag"),
+    as_json: bool = typer.Option(False, "--json"), max_tokens: int = typer.Option(256, "--max-tokens"),
+    stream: bool = typer.Option(False, "--stream"), use_rag: bool = typer.Option(False, "--rag"),
+    use_web: bool = typer.Option(False, "--web"),
 ) -> None:
     """Ask a scientific question and get an AI-generated answer."""
     from aether_scientist.core.config import AetherConfig
@@ -56,10 +55,10 @@ def ask(
             profile=prof, max_new_tokens=max_tokens,
             domains=[domain] if domain != "auto" else ["physics", "chemistry", "biology"],
         )
-        result = _scientist(cfg).analyze(query, use_rag=use_rag)
+        result = _scientist(cfg).analyze(query, use_rag=use_rag, use_web=use_web)
 
         res = result.get("analysis_result", {})
-        if use_rag and not as_json and res.get("sources"):
+        if (use_rag or use_web) and not as_json and res.get("sources"):
             ans, conf = res.get("generated_text", ""), res.get("confidence", 0.0)
             typer.echo(f"\nAnswer:\n{ans}\n\nConfidence: {conf}\n\nSources:")
             for i, s in enumerate(res["sources"]):
@@ -143,8 +142,8 @@ def bench(
 def research(
     question: str = typer.Argument(...), profile: str = typer.Option(None, "-p", "--profile"),
     k: int = typer.Option(3, "-k"), as_json: bool = typer.Option(False, "--json"),
-    out: Path = typer.Option(None, "-o", "--out"),  # noqa: B008
-    llm_planner: bool = typer.Option(False, "--llm-planner"),
+    out: Path = typer.Option(None, "-o", "--out"), llm_planner: bool = typer.Option(False, "--llm-planner"),  # noqa: B008
+    use_web: bool = typer.Option(False, "--web"),
 ) -> None:
     """Run autonomous multi-step research inquiry and generate cited report."""
     from aether_scientist.agent.pipeline import ResearchAgent
@@ -154,7 +153,9 @@ def research(
     try:
         agent = ResearchAgent(AetherConfig(profile=profile) if profile else AetherConfig())
         result = None
-        for ev in agent.stream(question, k=k, use_llm_planner=llm_planner, profile=profile):
+        for ev in agent.stream(
+            question, k=k, use_llm_planner=llm_planner, profile=profile, use_web=use_web
+        ):
             if ev.get("event") == "step":
                 typer.echo(f"[*] {ev.get('description', '')}", err=True)
             elif ev.get("event") == "result":

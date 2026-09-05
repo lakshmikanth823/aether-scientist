@@ -88,6 +88,7 @@ class AetherScientist:
         query: str,
         papers: list[str] | None = None,
         use_rag: bool = False,
+        use_web: bool = False,
     ) -> dict[str, Any]:
         """Single entry point for analyzing a scientific query."""
         papers = papers or []
@@ -99,7 +100,25 @@ class AetherScientist:
         query_tokens = self.tokenizer.encode(query)
         domain_result = adapter.process(query_tokens, papers)
 
-        if use_rag and len(self.rag_engine.store) > 0:
+        if use_web:
+            from aether_scientist.retrieval.web_ingest import fetch_and_chunk
+            from aether_scientist.retrieval.web_search import WebSearchEngine
+
+            wh_list = WebSearchEngine().search(query, max_results=self.rag_engine.top_k)
+            if wh_list:
+                chunks = fetch_and_chunk([wh.url for wh in wh_list if wh.url])
+                if chunks:
+                    vecs = self.rag_engine.embedder.embed([c.text for c in chunks])
+                    ttls = [
+                        f"[web] {next((w.title for w in wh_list if w.url == c.doc_id), 'Web')}"
+                        for c in chunks
+                    ]
+                    self.rag_engine.store.add(
+                        chunks, vecs, sources=[c.doc_id for c in chunks], titles=ttls
+                    )
+                    use_rag = True
+
+        if (use_rag or use_web) and len(self.rag_engine.store) > 0:
             grounded = self.rag_engine.grounded_generate(
                 query=query,
                 domain=domain,
