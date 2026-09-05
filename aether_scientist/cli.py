@@ -80,8 +80,7 @@ def analyze(
     """Analyze scientific papers."""
     try:
         res = _scientist().synthesize_papers(papers, domain=domain if domain != "auto" else None)
-        if focus:
-            res["focus"] = focus
+        res.update({"focus": focus} if focus else {})
         _output(res, as_json)
     except Exception as e:
         _err(e, 1)
@@ -186,12 +185,12 @@ def profiles(as_json: bool = typer.Option(False, "--json")) -> None:
         typer.echo(json.dumps(items, indent=2))
     else:
         hdr = f"{'Profile':<10} {'Model':<35} {'Tokens':<7} {'Temp':<5} {'Chat':<5} Description"
-        typer.echo(f"{hdr}\n{'-' * len(hdr)}")
-        for p in items:
-            typer.echo(
-                f"{p['name']:<10} {p['model']:<35} {p['max_new_tokens']:<7} "
-                f"{p['temperature']:<5} {str(p['chat']):<5} {p['description']}"
-            )
+        rows = [
+            f"{p['name']:<10} {p['model']:<35} {p['max_new_tokens']:<7} "
+            f"{p['temperature']:<5} {str(p['chat']):<5} {p['description']}"
+            for p in items
+        ]
+        typer.echo("\n".join([hdr, "-" * len(hdr), *rows]))
 
 @app.command()
 def domains(as_json: bool = typer.Option(False, "--json")) -> None:
@@ -215,5 +214,25 @@ def info(as_json: bool = typer.Option(False, "--json")) -> None:
     }, as_json)
 
 
+@app.command()
+def finetune(
+    data: Path = typer.Option(..., "--data", "-d"),  # noqa: B008
+    profile: str = typer.Option("fast", "-p", "--profile"),
+    epochs: int = typer.Option(1, "-e", "--epochs"),
+    out: Path = typer.Option(Path("./lora_output"), "-o", "--out"),  # noqa: B008
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Fine-tune a model profile using LoRA on custom scientific data."""
+    from aether_scientist.finetune.trainer import run_finetune
+
+    try:
+        _output(run_finetune(str(data), profile, str(out), epochs), as_json)
+    except (ImportError, ValueError, FileNotFoundError) as e:
+        _err(e, 2)
+    except Exception as e:
+        _err(e, 1)
+
+
 if __name__ == "__main__":
     app()
+
