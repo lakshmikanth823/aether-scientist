@@ -44,3 +44,24 @@ def test_charset_collapse_detection_and_fallback():
 
     cleaned = clean_output(collapse, profile_name="fast")
     assert "[Model produced degenerate output on profile 'fast'." in cleaned
+
+
+def test_url_guard_strips_fabricated_urls():
+    """URLs not present in source snippets should be stripped."""
+    text = "The answer is here http://fake.example.com/paper and also http://real.org/data"
+    snippets = ["Some context mentioning http://real.org/data in text"]
+
+    result = clean_output(text, source_snippets=snippets)
+    assert "http://real.org/data" in result
+    assert "http://fake.example.com" not in result
+
+
+def test_url_guard_replaces_when_majority_fabricated():
+    """If stripping removes >50% of text, return insufficient-evidence message."""
+    text = "http://fake1.com http://fake2.com http://fake3.com http://fake4.com"
+    snippets = ["No URLs here at all"]
+
+    result = clean_output(text, source_snippets=snippets)
+    assert "Insufficient evidence" in result
+    assert "fabricate" in result
+

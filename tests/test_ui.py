@@ -203,3 +203,22 @@ def test_vision_tool_analyze_action() -> None:
         assert not at.exception
         assert len(at.success) > 0
         assert "convolutional neural network" in at.success[0].value
+
+
+def test_single_profile_selector() -> None:
+    """Verify exactly one profile selectbox exists (sidebar only, no per-view dupes)."""
+    at = AppTest.from_file(APP_PATH, default_timeout=10)
+    at.run()
+
+    # Check all four views: main area should have 0 selectboxes, sidebar exactly 1
+    for view in ["Chat", "Knowledge Base", "Research Agent", "Vision Tool"]:
+        at.sidebar.radio[0].set_value(view).run()
+        assert not at.exception
+        assert len(at.main.selectbox) == 0, (
+            f"Expected 0 selectboxes in main area for {view} view, got {len(at.main.selectbox)}"
+        )
+        assert len(at.sidebar.selectbox) == 1, (
+            f"Expected 1 selectbox in sidebar for {view} view, got {len(at.sidebar.selectbox)}"
+        )
+        assert "fast" in at.sidebar.selectbox[0].options
+

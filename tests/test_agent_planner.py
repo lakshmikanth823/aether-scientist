@@ -3,7 +3,7 @@ from aether_scientist.agent.planner import extract_topic, plan, plan_llm
 
 def test_extract_topic_question_words():
     assert extract_topic("What is quantum entanglement?") == "quantum entanglement"
-    assert extract_topic("How does CRISPR work?") == "CRISPR work"
+    assert extract_topic("How does CRISPR work?") == "CRISPR"
     assert extract_topic("Why is entropy increasing?") == "entropy increasing"
     assert extract_topic("Which particle has no charge?") == "particle has no charge"
     assert extract_topic("Can machines think?") == "machines think"

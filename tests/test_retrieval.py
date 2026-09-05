@@ -174,3 +174,96 @@ def test_rag_retrieve_deduplicates_chunks(tmp_path):
     assert len(keys) == len(set(keys))
     assert len(hits) == len(c1)
 
+
+def test_ingest_sanitizes_special_tokens(tmp_path):
+    """Special token strings (<EOS>, <pad>, <|...|>) must be stripped from text."""
+    f = tmp_path / "tokens.txt"
+    f.write_text(
+        "First line title\nSome text <EOS> more <pad> text <|endoftext|> end.",
+        encoding="utf-8",
+    )
+    docs = ingest_file(f)
+    assert "<EOS>" not in docs[0].text
+    assert "<pad>" not in docs[0].text
+    assert "<|endoftext|>" not in docs[0].text
+    assert "Some text" in docs[0].text
+
+
+def test_ingest_skips_boilerplate_title(tmp_path):
+    """Title extraction should skip boilerplate lines (license, arxiv, copyright)."""
+    f = tmp_path / "boiler.txt"
+    f.write_text(
+        "arXiv:1706.03762v7 [cs.CL] 2 Aug 2023\n"
+        "Attention Is All You Need\nSome body text.\n",
+        encoding="utf-8",
+    )
+    docs = ingest_file(f)
+    assert docs[0].title == "Attention Is All You Need"
+
+
+def test_chunker_deduplicates_content():
+    """Chunks with identical whitespace-collapsed text should be dropped."""
+    text = "Hello world.\n\nHello world.\n\nDifferent content here."
+    chunks_out = chunk(text, size=512, doc_id="d")
+    texts = [c.text for c in chunks_out]
+    # "Hello world." should appear at most once
+    assert texts.count("Hello world.") <= 1
+    assert any("Different content" in t for t in texts)
+
+
+def test_confidence_gate_skips_llm(monkeypatch):
+    """When mean top-k score < 0.35, grounded_generate should NOT call the LLM."""
+    from aether_scientist.retrieval.chunker import Chunk
+    from aether_scientist.retrieval.store import Hit
+
+    rag = RAGEngine()
+    mock_hits = [
+        Hit(
+            chunk=Chunk(
+                chunk_id="c1",
+                doc_id="d1",
+                text="Attention is a mechanism...",
+                index=0,
+            ),
+            doc_id="d1",
+            source="paper.pdf",
+            score=0.22,
+            title="Attention Paper",
+        )
+    ]
+    monkeypatch.setattr(rag, "retrieve", lambda q, k=None: mock_hits)
+
+    llm_called = False
+
+    def fake_generate(**kwargs):
+        nonlocal llm_called
+        llm_called = True
+        return {"text": "Fabricated answer http://fake.url", "model": "test"}
+
+    monkeypatch.setattr(
+        "aether_scientist.core.inference.InferenceEngine.generate", fake_generate
+    )
+
+    answer = rag.grounded_generate(
+        "What does this paper conclude about quantum error correction?"
+    )
+    assert "Insufficient evidence" in answer.answer
+    assert answer.confidence == 0.22
+    assert not llm_called, "LLM should NOT be called when confidence < 0.35"
+
+
+def test_rag_index_force_clears_store(tmp_path):
+    """RAGEngine.index(force=True) should wipe store before re-indexing."""
+    doc_path = tmp_path / "doc.txt"
+    doc_path.write_text("Some scientific text about physics.", encoding="utf-8")
+
+    rag = RAGEngine(embedder=EmbeddingEngine(backend="tfidf", cache_dir=str(tmp_path / "c")))
+    rag.index([str(doc_path)])
+    count_after_first = len(rag.store)
+    assert count_after_first > 0
+
+    rag.index([str(doc_path)], force=True)
+    count_after_rebuild = len(rag.store)
+    assert count_after_rebuild == count_after_first  # Same docs, same count (not doubled)
+
+
