@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.5.0] - 2026-09-05
+
+### Added
+- PDF embedded image extraction pipeline using PyMuPDF (`fitz`) in `retrieval/images.py`
+- Lightweight VLM diagram captioning engine with BLIP in `multimodal/captioner.py`
+- Multimodal RAG ingestion injecting `[Figure {n}: {caption}]` annotations into document chunks
+- CLI command `aether vision <image_path>` and REST endpoint `POST /vision`
+- Optional `[vision]` extras group in `pyproject.toml` (`Pillow`, `transformers`)
+- 100% offline unit and integration tests for figure extraction and vision RAG
+
 ## [1.4.0] - 2026-09-05
 
 ### Added

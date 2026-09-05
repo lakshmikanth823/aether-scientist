@@ -194,9 +194,32 @@ res = run_finetune("./custom_papers.json", profile_name="fast", output_dir="./lo
 print("Adapter saved:", res["output_dir"])
 ```
 
+## 🖼️ Multimodal & Diagram Understanding
+
+Extract embedded PDF figures, generate VLM captions, and index them into RAG:
+
+```bash
+# 1. Install optional vision dependencies
+pip install "aether-scientist[vision]"
+
+# 2. Test captioner on an image or diagram
+aether vision figure1.png
+
+# 3. Ingesting PDFs automatically extracts images and captions diagrams
+aether ingest paper.pdf
+```
+
+```python
+from aether_scientist.multimodal.captioner import CaptionEngine
+
+caption = CaptionEngine().caption("diagram.png")
+print("Caption:", caption)
+```
+
 ## 📜 Contributing & License
 
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`
 - Full details in [CHANGELOG.md](CHANGELOG.md).
 - Licensed under the [MIT License](LICENSE).
+
 
