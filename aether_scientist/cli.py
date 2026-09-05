@@ -94,7 +94,10 @@ def ingest(
         sc = _scientist()
         stats = sc.rag_engine.index(paths)
         sc.rag_engine.store.save(Path(sc.config.rag.cache_dir) / "default_store")
-        _output({"status": "indexed", "docs": stats.docs, "chunks": stats.chunks}, as_json)
+        _output({
+            "status": "indexed", "docs": stats.docs, "chunks": stats.chunks,
+            "images": stats.images_extracted, "captions": stats.captions_generated,
+        }, as_json)
     except Exception as e:
         _err(e, 1)
 
@@ -233,6 +236,22 @@ def finetune(
         _err(e, 1)
 
 
+@app.command()
+def vision(
+    image: Path = typer.Argument(..., help="Path to image file"),  # noqa: B008
+    as_json: bool = typer.Option(False, "--json"),
+) -> None:
+    """Generate descriptive caption for a scientific figure or diagram."""
+    from aether_scientist.multimodal.captioner import CaptionEngine
+
+    try:
+        cap = CaptionEngine().caption(str(image))
+        _output({"image": str(image), "caption": cap}, as_json)
+    except Exception as e:
+        _err(e, 1)
+
+
 if __name__ == "__main__":
     app()
+
 

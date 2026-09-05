@@ -1,9 +1,10 @@
 import json
 import os
+import tempfile
 import time
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi import Depends, FastAPI, File, HTTPException, Request, Security, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
@@ -84,15 +85,11 @@ class RateLimiter:
 
     def check(self, client_id: str) -> bool:
         now = time.time()
-        if client_id not in self.clients:
-            self.clients[client_id] = []
-
-        self.clients[client_id] = [t for t in self.clients[client_id] if now - t < 60]
-
-        if len(self.clients[client_id]) >= self.requests_per_minute:
+        active = [t for t in self.clients.get(client_id, []) if now - t < 60]
+        if len(active) >= self.requests_per_minute:
             return False
-
-        self.clients[client_id].append(now)
+        active.append(now)
+        self.clients[client_id] = active
         return True
 
 
@@ -246,33 +243,50 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
 
     @app.post("/synthesize", response_model=APIResponse, dependencies=auth)
     async def synthesize(req: SynthesizeRequest) -> APIResponse:
-        return APIResponse(
-            status="success", data={"synthesis": f"Synthesized for domain: {req.domain}"}
-        )
+        d = {"synthesis": f"Synthesized for domain: {req.domain}"}
+        return APIResponse(status="success", data=d)
 
     @app.post("/hypothesize", response_model=APIResponse, dependencies=auth)
     async def hypothesize(req: HypothesizeRequest) -> APIResponse:
-        return APIResponse(
-            status="success", data={"hypothesis": "Generated hypothesis from observations."}
-        )
+        d = {"hypothesis": "Generated hypothesis from observations."}
+        return APIResponse(status="success", data=d)
 
     @app.post("/experiment", response_model=APIResponse, dependencies=auth)
     async def experiment(req: ExperimentRequest) -> APIResponse:
-        return APIResponse(
-            status="success", data={"experiment_design": "Detailed experiment plan."}
-        )
+        d = {"experiment_design": "Detailed experiment plan."}
+        return APIResponse(status="success", data=d)
 
     @app.get("/domains", response_model=APIResponse, dependencies=auth)
     async def get_domains() -> APIResponse:
-        return APIResponse(
-            status="success", data={"domains": ["physics", "biology", "chemistry"]}
-        )
+        return APIResponse(status="success", data={"domains": ["physics", "biology", "chemistry"]})
+
+    @app.post("/vision", response_model=APIResponse, dependencies=auth)
+    async def vision_caption(
+        file: UploadFile | None = File(None), image_path: str = ""  # noqa: B008
+    ) -> APIResponse:
+        from aether_scientist.multimodal.captioner import CaptionEngine
+
+        engine = CaptionEngine()
+        if file and file.filename:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                tmp.write(await file.read())
+                p = tmp.name
+            try:
+                cap = engine.caption(p)
+            finally:
+                os.remove(p)
+            return APIResponse(status="success", data={"caption": cap, "filename": file.filename})
+        if image_path:
+            return APIResponse(
+                status="success",
+                data={"caption": engine.caption(image_path), "image_path": image_path},
+            )
+        raise HTTPException(status_code=400, detail="Image file or image_path required.")
 
     @app.get("/health", response_model=APIResponse)
     async def health_check() -> APIResponse:
-        return APIResponse(
-            status="success", data={"status": "healthy", "core_available": CORE_AVAILABLE}
-        )
+        d = {"status": "healthy", "core_available": CORE_AVAILABLE}
+        return APIResponse(status="success", data=d)
 
     return app
 
