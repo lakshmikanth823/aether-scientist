@@ -4,6 +4,7 @@ from typing import Any
 
 from aether_scientist.core.config import AetherConfig
 from aether_scientist.core.inference import InferenceEngine
+from aether_scientist.core.profiles import ModelProfile, resolve
 from aether_scientist.core.tokenizer import ScientificTokenizer
 from aether_scientist.domains import load_adapter
 from aether_scientist.domains.base import DomainAdapter
@@ -18,6 +19,7 @@ class AetherScientist:
 
     def __init__(self, config: AetherConfig | None = None) -> None:
         self.config: AetherConfig = config or AetherConfig()
+        self.profile: ModelProfile = resolve(self.config.profile)
         self.tokenizer: ScientificTokenizer = ScientificTokenizer()
         self.adapters: dict[str, DomainAdapter] = self._load_adapters()
         self.efficiency_optimizer: EfficiencyOptimizer = EfficiencyOptimizer(
@@ -103,6 +105,7 @@ class AetherScientist:
                 domain=domain,
                 system_prompt=adapter.system_prompt(),
                 model_name=self.config.model_name,
+                profile=self.profile,
             )
             result = {
                 "analysis": domain_result.analysis,
@@ -119,12 +122,15 @@ class AetherScientist:
                     for s in grounded.sources
                 ],
                 "citations_valid": grounded.citations_valid,
+                "profile": self.profile.name,
+                "device": InferenceEngine.device,
             }
         else:
-            prompt = f"{adapter.system_prompt()}\n\nQuestion: {query}\n\nAnswer:"
             generation = InferenceEngine.generate(
-                prompt=prompt,
+                query=query,
+                system_prompt=adapter.system_prompt(),
                 model_name=self.config.model_name,
+                profile=self.profile,
                 max_new_tokens=self.config.max_new_tokens,
                 temperature=self.config.temperature,
             )
@@ -136,6 +142,8 @@ class AetherScientist:
                 "generated_text": generation["text"],
                 "sources": [],
                 "generation_metadata": generation,
+                "profile": self.profile.name,
+                "device": InferenceEngine.device,
             }
 
         if papers:
@@ -147,6 +155,8 @@ class AetherScientist:
             "query_tokens": query_tokens,
             "analysis_result": result,
             "config_used": self.config.model_name,
+            "profile": self.profile.name,
+            "device": InferenceEngine.device,
         }
 
     def synthesize_papers(self, papers: list[str], domain: str | None = None) -> dict[str, Any]:

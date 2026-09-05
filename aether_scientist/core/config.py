@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class TokenizerConfig(BaseModel):
@@ -23,7 +23,8 @@ class RagConfig(BaseModel):
 
 
 class AetherConfig(BaseModel):
-    model_name: str = "distilgpt2"
+    profile: str = "offline"
+    model_name: str = "distilgpt2"  # Deprecated: use profile (profile wins)
     model_size: str = "82M"
     quantization_bits: int = 4
     max_new_tokens: int = 256
@@ -40,3 +41,15 @@ class AetherConfig(BaseModel):
     tokenizer: TokenizerConfig = Field(default_factory=TokenizerConfig)
     efficiency: EfficiencyConfig = Field(default_factory=EfficiencyConfig)
     rag: RagConfig = Field(default_factory=RagConfig)
+
+    @model_validator(mode="after")
+    def _sync_profile_model(self) -> "AetherConfig":
+        from aether_scientist.core.profiles import PROFILES, resolve
+
+        if self.profile != "offline":
+            resolved = resolve(self.profile)
+            self.model_name = resolved.model
+        elif self.model_name != "distilgpt2":
+            if self.model_name in PROFILES:
+                self.profile = self.model_name
+        return self

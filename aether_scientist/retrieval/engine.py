@@ -112,6 +112,7 @@ class RAGEngine:
         domain: str = "physics",
         system_prompt: str = "",
         model_name: str = "distilgpt2",
+        profile: Any = None,
     ) -> GroundedAnswer:
         """Generate an answer strictly grounded in retrieved evidence."""
         hits = self.retrieve(query, k=self.top_k)
@@ -143,18 +144,22 @@ class RAGEngine:
         )
 
         sys_msg = system_prompt or f"You are an expert {domain} scientist."
-        prompt = (
+        system_instructions = (
             f"{sys_msg}\n\n"
             f"Context:\n{context_blocks}\n\n"
             f"Instructions:\n"
             f"- Answer the question ONLY using the facts from the numbered context above.\n"
             f"- Cite each statement with its source index in brackets, e.g. [1].\n"
-            f"- If the context lacks information, state 'insufficient evidence'.\n\n"
-            f"Question: {query}\n\n"
-            f"Answer:"
+            f"- If the context lacks information, state 'insufficient evidence'."
         )
 
-        gen = InferenceEngine.generate(prompt=prompt, model_name=model_name, max_new_tokens=256)
+        gen = InferenceEngine.generate(
+            system_prompt=system_instructions,
+            query=query,
+            model_name=model_name,
+            profile=profile,
+            max_new_tokens=256,
+        )
         raw_answer = gen.get("text", "")
         cleaned_answer, citations_valid = self._guard_citations(raw_answer, len(sources))
 
@@ -164,3 +169,4 @@ class RAGEngine:
             confidence=confidence,
             citations_valid=citations_valid,
         )
+
