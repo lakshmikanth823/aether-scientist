@@ -9,7 +9,9 @@ from aether_scientist.retrieval.engine import GroundedAnswer, RAGEngine
 
 def render_knowledge_view(rag_engine: RAGEngine) -> None:
     """Render knowledge base manager and grounded RAG query view."""
+    profile = st.session_state.get("profile", "fast")
     st.header("📚 Knowledge Base & RAG")
+    st.caption(f"Grounded Retrieval active with profile `{profile}`")
 
     if "rag_messages" not in st.session_state:
         st.session_state.rag_messages = []
@@ -65,6 +67,8 @@ def render_knowledge_view(rag_engine: RAGEngine) -> None:
         for q_msg in st.session_state.rag_messages:
             with st.chat_message(q_msg["role"]):
                 st.markdown(q_msg["content"])
+                if q_msg.get("badge"):
+                    st.caption(q_msg["badge"])
                 if q_msg.get("sources"):
                     with st.expander(f"Sources ({len(q_msg['sources'])})"):
                         for s in q_msg["sources"]:
@@ -76,9 +80,13 @@ def render_knowledge_view(rag_engine: RAGEngine) -> None:
             with st.chat_message("user"):
                 st.markdown(prompt)
 
+            from ui.app import get_model_badge
+
+            badge = get_model_badge(profile)
             with st.chat_message("assistant"), st.spinner("Retrieving evidence..."):
-                res: GroundedAnswer = rag_engine.grounded_generate(prompt)
+                res: GroundedAnswer = rag_engine.grounded_generate(prompt, profile=profile)
                 st.markdown(res.answer)
+                st.caption(badge)
                 if res.sources:
                     lbl = f"Sources ({len(res.sources)}) - Conf: {res.confidence:.2f}"
                     with st.expander(lbl):
@@ -86,6 +94,10 @@ def render_knowledge_view(rag_engine: RAGEngine) -> None:
                             ttl = s.title or s.doc_id
                             st.markdown(f"**[{s.score:.2f}] {ttl}**\n> {s.snippet}")
             st.session_state.rag_messages.append(
-                {"role": "assistant", "content": res.answer, "sources": res.sources}
+                {
+                    "role": "assistant",
+                    "content": res.answer,
+                    "sources": res.sources,
+                    "badge": badge,
+                }
             )
-
