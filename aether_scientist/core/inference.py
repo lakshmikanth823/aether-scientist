@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import Generator
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,50 @@ class InferenceEngine:
             elapsed = time.perf_counter() - start
             logger.error(f"Generation failed after {elapsed:.3f}s: {e}")
             raise
+
+    @classmethod
+    def stream(
+        cls,
+        prompt: str,
+        model_name: str = "distilgpt2",
+        max_new_tokens: int = 256,
+        temperature: float = 0.7,
+    ) -> Generator[str, None, None]:
+        """Stream generated text tokens with fallback support."""
+        try:
+            from threading import Thread
+
+            from transformers import TextIteratorStreamer
+
+            pipe = cls.get(model_name)
+            tokenizer = pipe.tokenizer
+            model = pipe.model
+            streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+            inputs = tokenizer([prompt], return_tensors="pt")
+            kwargs = {
+                **inputs,
+                "streamer": streamer,
+                "max_new_tokens": max_new_tokens,
+                "temperature": temperature,
+                "do_sample": temperature > 0,
+            }
+            thread = Thread(target=model.generate, kwargs=kwargs)
+            thread.start()
+            for token in streamer:
+                if token:
+                    yield token
+            thread.join()
+        except Exception as e:
+            logger.info(f"Streamer fallback active: {e}")
+            res = cls.generate(
+                prompt=prompt,
+                model_name=model_name,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+            )
+            words = res.get("text", "").split(" ")
+            for i, w in enumerate(words):
+                yield w + (" " if i < len(words) - 1 else "")
 
     @classmethod
     def reset(cls) -> None:
