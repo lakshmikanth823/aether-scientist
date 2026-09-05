@@ -100,9 +100,25 @@ aether research "CRISPR gene editing mechanisms" --profile balanced --out report
 ### Agent CLI Options:
 - `--profile <name>`: Model preset (`offline`, `fast`, `balanced`, `quality`). Default: `balanced`.
 - `-k <int>`: Top passages retrieved per sub-question (default: 3).
+- `--web`: Enable global web search & scraping retrieval when local index is empty or confidence is low.
 - `--out <path>`: Write rendered report to a Markdown file.
 - `--json`: Output structured JSON (state, sub-queries, references, coverage).
 - `--llm-planner`: Use model-driven query planning instead of heuristic template planner.
+
+## 🌐 Web-Enabled Research
+
+When local literature is unavailable or insufficient, `--web` activates global research mode:
+```bash
+# Query live scientific literature from the web
+aether research "Perovskite solar cell efficiency" --web --profile balanced --out solar.md
+
+# Ask single grounded question with web fallback
+aether ask "What is the latest tokamak plasma pressure record?" --web --profile fast
+```
+- **Lightweight Architecture**: Driven by `httpx` and `BeautifulSoup4` with zero heavy browser automation.
+- **Automated Fallback**: If local vector store is empty, `--web` automatically queries DuckDuckGo/Wikipedia, scrapes relevant pages, cleans HTML, and chunks passages.
+- **Citation Provenance**: Web sources are explicitly tagged with `[web]` in findings and resolved to original page URLs in references.
+
 
 ### Sample Report Excerpt:
 ```markdown

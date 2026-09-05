@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.3.0] - 2026-09-05
+
+### Added
+- Web-search retrieval integration via `WebSearchEngine` with DuckDuckGo and Wikipedia fallback
+- HTML page fetching and cleaning pipeline in `web_ingest.py` with `bs4` and regex tag stripping
+- Automatic web fallback in `ResearchAgent` when local index is empty or low confidence with `--web`
+- `--web` flag added to `aether research` and `aether ask` CLI commands
+- `use_web` parameter added to `/research` and `/analyze` FastAPI endpoints
+- Source provenance tracking with `[web]` tagging and direct URL references in research reports
+- 100% offline test suite for web search, page cleaning, and agent web workflows
+
 ## [1.2.1] - 2026-09-05
 
 ### Fixed
