@@ -58,6 +58,7 @@ def main() -> None:
         else def_idx
     )
 
+    # Guaranteed single global profile selector for all views
     selected_prof = st.sidebar.selectbox("Active Profile", p_names, index=cur_idx)
     st.session_state.profile = selected_prof
     st.sidebar.caption(f"⚙️ {get_model_badge(selected_prof)}")
