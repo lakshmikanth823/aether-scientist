@@ -3,7 +3,18 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.6.1] - 2026-09-05
+
+### Fixed
+- Routed all Streamlit views through a global sidebar profile selector defaulting to `fast`
+- Displayed active profile, model, and compute device badges on generated outputs
+- Deduplicated retrieved RAG hits and sources by `(doc_id, chunk_id)` maintaining score order
+- Guarded against degenerate model output loops and charset collapse with fallback warnings
+- Protected CLI against Windows console Unicode encoding errors on scientific symbols
+- Added advisory stderr notification when `aether ask --rag` resolves to `offline` profile
+
 ## [1.6.0] - 2026-09-05
+
 
 ### Added
 - Streamlit interactive web interface with sidebar navigation router in `ui/app.py`
