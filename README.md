@@ -175,8 +175,28 @@ print("Profile:", result["profile"])
 print("Device:", result["device"])
 ```
 
+## 🎯 LoRA Fine-Tuning
+
+Fine-tune instruction models (`fast` 360M, `balanced` 0.5B) on custom scientific corpora:
+
+```bash
+# 1. Install optional fine-tuning extras
+pip install "aether-scientist[finetune]"
+
+# 2. Run LoRA SFT on custom scientific JSON/JSONL dataset
+aether finetune --data ./custom_papers.json --profile fast --epochs 1 --out ./lora_adapter
+```
+
+```python
+from aether_scientist.finetune import run_finetune
+
+res = run_finetune("./custom_papers.json", profile_name="fast", output_dir="./lora_adapter")
+print("Adapter saved:", res["output_dir"])
+```
+
 ## 📜 Contributing & License
 
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`
 - Full details in [CHANGELOG.md](CHANGELOG.md).
 - Licensed under the [MIT License](LICENSE).
+

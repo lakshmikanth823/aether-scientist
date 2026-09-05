@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.4.0] - 2026-09-05
+
+### Added
+- Lightweight LoRA fine-tuning harness using Hugging Face `peft` and `trl` in `finetune/trainer.py`
+- Scientific data formatter converting raw text and QA records to ChatML instruction format in `finetune/data.py`
+- Dynamic `LoraConfig` generation tailored to model profiles (`fast`, `balanced`, `offline`) in `finetune/config.py`
+- CLI command `aether finetune --data <path> --profile <profile> --epochs <n> --out <dir>`
+- Optional `[finetune]` extras group in `pyproject.toml` (`peft`, `trl`, `datasets`, `bitsandbytes`)
+- 100% offline test suite mocking `SFTTrainer`, model loading, and CPU guardrails
+
 ## [1.3.0] - 2026-09-05
 
 ### Added
