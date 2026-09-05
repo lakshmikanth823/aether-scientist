@@ -33,3 +33,21 @@ def test_benchmark_eval_mocked(monkeypatch):
     assert d["total"] == 3
     assert "accuracy" in d
     assert "details" in d
+    assert "profile" in d
+    assert "device" in d
+
+
+def test_compare_profiles_mocked():
+    def fake_gen(prompt, profile, **kwargs):
+        return {"text": "The answer is Farad."}
+
+    from aether_scientist.benchmarks.eval import compare_profiles
+
+    res = compare_profiles(["offline", "fast"], n=2, generator=fake_gen)
+    assert "profiles" in res
+    assert "summary" in res
+    assert len(res["summary"]) == 2
+    assert res["summary"][0]["profile"] == "offline"
+    assert res["summary"][1]["profile"] == "fast"
+    assert res["profiles"]["offline"]["total"] == 2
+
