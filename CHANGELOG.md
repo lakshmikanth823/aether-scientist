@@ -3,6 +3,18 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.6.2] - 2026-09-05
+
+### Fixed
+- Sanitized extracted text: stripped literal special tokens (`<EOS>`, `<pad>`, `<s>`, `</s>`, `<|...|>`) before chunking
+- Improved document title extraction: skipped license, arXiv, attribution, copyright, and permission boilerplate lines
+- Chunker content deduplication: dropped identical whitespace-collapsed text chunks within documents
+- Retrieval content-hash deduplication: merged identical text hits across store keeping highest similarity score
+- Confidence gate: skipped LLM generation when mean top-k score < 0.35, returning honest insufficient-evidence response
+- URL hallucination guard: stripped uncited web URLs from generated text and fell back to honest warning when fabricated
+- Guaranteed single global profile selectbox across all Streamlit UI views
+- Added `--rebuild` flag to CLI `ingest` command to wipe store before re-indexing
+
 ## [1.6.1] - 2026-09-05
 
 ### Fixed
