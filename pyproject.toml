@@ -1,19 +1,21 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "aether-scientist"
 version = "1.0.0"
-description = "Domain-specialized multimodal LLM framework for scientific research"
-requires-python = ">=3.11"
-license = "MIT"
+description = "Domain-specialized scientific research LLM with RAG, citation grounding, and streaming"
+requires-python = ">=3.10"
 readme = "README.md"
-authors = [{name = "AetherScientist Team"}]
+license = {text = "MIT"}
+authors = [{name = "AetherScientist Contributors"}]
+keywords = ["llm", "scientific", "rag", "research", "nlp"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -42,10 +44,24 @@ dev = [
     "ruff>=0.1",
     "pre-commit>=3.0",
     "httpx>=0.24",
+    "build>=1.0",
+    "twine>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aetherscientist/aether-scientist"
+Repository = "https://github.com/aetherscientist/aether-scientist"
+Issues = "https://github.com/aetherscientist/aether-scientist/issues"
 
 [project.scripts]
 aether = "aether_scientist.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aether_scientist*"]
+
+[tool.setuptools.package-data]
+aether_scientist = ["benchmarks/data/*.json"]
 
 [tool.ruff]
 line-length = 100
@@ -63,6 +79,3 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v"
-
-[tool.setuptools.packages.find]
-where = ["."]
