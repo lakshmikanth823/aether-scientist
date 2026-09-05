@@ -21,12 +21,24 @@ def test_app_shell_navigation() -> None:
     at.run()
     assert not at.exception
     assert len(at.sidebar.radio) > 0
+    assert len(at.sidebar.selectbox) > 0
+
+    # Verify sidebar profile selector defaults to 'fast'
+    prof_select = at.sidebar.selectbox[0]
+    assert prof_select.value == "fast"
+    assert "fast" in prof_select.options
+
+    # Update profile in sidebar and check session state
+    prof_select.set_value("balanced").run()
+    assert not at.exception
+    assert at.session_state["profile"] == "balanced"
 
     options = at.sidebar.radio[0].options
     assert "Chat" in options
     assert "Knowledge Base" in options
     assert "Research Agent" in options
     assert "Vision Tool" in options
+
 
 
 def test_engine_caching() -> None:
@@ -92,10 +104,13 @@ def test_knowledge_view_management() -> None:
     with patch(
         "aether_scientist.retrieval.engine.RAGEngine.grounded_generate",
         return_value=mock_ans,
-    ):
+    ) as mock_gen:
         at.chat_input[0].set_value("What is attention?").run()
         assert not at.exception
         assert any("Attention allows focusing" in m.value for m in at.markdown)
+        mock_gen.assert_called_once()
+        assert mock_gen.call_args[1].get("profile") == "fast"
+
 
 
 def test_knowledge_view_file_upload() -> None:

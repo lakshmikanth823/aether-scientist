@@ -143,6 +143,17 @@ def test_cli_ask_rag(tmp_path, monkeypatch):
     assert "analysis_result" in data
 
 
+def test_cli_ask_rag_offline_warning(monkeypatch):
+    monkeypatch.setattr(
+        "aether_scientist.core.inference.InferenceEngine.generate",
+        lambda **kwargs: {"text": "Grounded answer statement [1]."},
+    )
+    result = runner.invoke(app, ["ask", "What is entanglement?", "--rag"])
+    assert result.exit_code == 0
+    assert "Using 'offline' profile" in result.output
+
+
+
 def test_cli_bench(monkeypatch):
     monkeypatch.setattr(
         "aether_scientist.core.inference.InferenceEngine.generate",

@@ -1,7 +1,15 @@
 import json
+import sys
 from pathlib import Path
 
 import typer
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 app = typer.Typer(
     name="aether", help="AetherScientist — Scientific Research LLM", add_completion=False
@@ -24,7 +32,9 @@ def _err(e: Exception, code: int = 1) -> None:
 def _scientist(cfg=None):
     from aether_scientist.core.config import AetherConfig
     from aether_scientist.core.model import AetherScientist
+
     return AetherScientist(cfg or AetherConfig())
+
 
 @app.command()
 def ask(
@@ -41,14 +51,26 @@ def ask(
     """Ask a scientific question and get an AI-generated answer."""
     from aether_scientist.core.config import AetherConfig
     from aether_scientist.core.inference import InferenceEngine
+    from aether_scientist.core.profiles import resolve
     from aether_scientist.domains import available_domains
 
     try:
         prof = profile or model
+        if use_rag and not profile and not as_json and resolve(prof).name == "offline":
+            typer.echo(
+                "Note: Using 'offline' profile (base model, weak instruction following). "
+                "Consider --profile fast or balanced.",
+                err=True,
+            )
+
+
         if stream:
-            for tok in InferenceEngine.stream(query=query, profile=prof, max_new_tokens=max_tokens):
+            for tok in InferenceEngine.stream(
+                query=query, profile=prof, max_new_tokens=max_tokens
+            ):
                 typer.echo(tok, nl=False)
             return typer.echo()
+
 
         if domain != "auto" and domain not in available_domains():
             raise ValueError(f"Unknown domain '{domain}'. Available: {available_domains()}")

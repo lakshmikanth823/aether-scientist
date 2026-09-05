@@ -158,3 +158,19 @@ def test_rag_engine_empty_retrieve_and_grounded():
     assert "Insufficient evidence" in grounded.answer
     assert grounded.sources == []
     assert grounded.confidence == 0.0
+
+
+def test_rag_retrieve_deduplicates_chunks(tmp_path):
+    rag = RAGEngine(embedder=EmbeddingEngine(backend="tfidf", cache_dir=str(tmp_path / "c")))
+    c1 = chunk("Quantum mechanics describes atomic particles and wavefunctions.", doc_id="doc_a")
+    vecs = rag.embedder.embed([c.text for c in c1])
+    # Add identical chunks to simulate duplicate indexing
+    rag.store.add(c1, vecs, sources=["p.txt"], titles=["Doc A"])
+    rag.store.add(c1, vecs, sources=["p.txt"], titles=["Doc A"])
+    assert len(rag.store) == 2 * len(c1)
+
+    hits = rag.retrieve("quantum atomic particles", k=4)
+    keys = [(h.doc_id, getattr(h.chunk, "chunk_id", h.chunk.index)) for h in hits]
+    assert len(keys) == len(set(keys))
+    assert len(hits) == len(c1)
+
