@@ -3,6 +3,9 @@ import time
 from collections.abc import Generator
 from typing import Any
 
+from aether_scientist.core.format import clean_output, format_prompt, get_stop_markers
+from aether_scientist.core.profiles import PROFILES, ModelProfile, resolve
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,10 +14,18 @@ class InferenceEngine:
 
     _pipe: Any = None
     _model_name: str | None = None
+    device: str = "cpu"
 
     @classmethod
-    def get(cls, model_name: str) -> Any:
-        """Return pipeline, creating on first call (lazy load)."""
+    def get(cls, profile: ModelProfile | str = "offline") -> Any:
+        """Return pipeline for model profile, creating on first call."""
+        if isinstance(profile, ModelProfile):
+            model_name = profile.model
+        elif profile in PROFILES:
+            model_name = PROFILES[profile].model
+        else:
+            model_name = profile
+
         if cls._pipe is None or cls._model_name != model_name:
             try:
                 from transformers import pipeline
@@ -33,29 +44,68 @@ class InferenceEngine:
         return cls._pipe
 
     @classmethod
+    def _clean(cls, text: str, tokenizer: Any = None) -> str:
+        """Clean output text by cutting at stop markers."""
+        markers = get_stop_markers(tokenizer)
+        return clean_output(text, markers)
+
+    @classmethod
     def generate(
         cls,
-        prompt: str,
+        prompt: str = "",
         model_name: str = "distilgpt2",
-        max_new_tokens: int = 256,
-        temperature: float = 0.7,
+        max_new_tokens: int | None = None,
+        temperature: float | None = None,
+        profile: ModelProfile | str | None = None,
+        system_prompt: str = "",
+        query: str = "",
     ) -> dict[str, Any]:
-        """Generate text with timing and error handling."""
+        """Generate text with profile chat formatting, parameters, and output cleaning."""
         start = time.perf_counter()
+        if profile is not None:
+            target_profile = resolve(
+                profile.name if isinstance(profile, ModelProfile) else profile
+            )
+            model_to_use = target_profile.model
+            profile_name = target_profile.name
+        elif model_name in PROFILES:
+            target_profile = PROFILES[model_name]
+            model_to_use = target_profile.model
+            profile_name = target_profile.name
+        else:
+            target_profile = resolve()
+            model_to_use = model_name
+            profile_name = "offline"
+
+        tokens_limit = (
+            max_new_tokens if max_new_tokens is not None else target_profile.max_new_tokens
+        )
+        temp = temperature if temperature is not None else target_profile.temperature
+
         try:
-            pipe = cls.get(model_name)
+            pipe = cls.get(model_to_use)
+            tokenizer = getattr(pipe, "tokenizer", None)
+
+            user_text = query if query else prompt
+            formatted_prompt = format_prompt(
+                tokenizer, target_profile, system=system_prompt, user=user_text
+            )
+
             outputs = pipe(
-                prompt,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                do_sample=temperature > 0,
+                formatted_prompt,
+                max_new_tokens=tokens_limit,
+                temperature=temp,
+                do_sample=temp > 0,
+                repetition_penalty=1.15,
                 return_full_text=False,
             )
-            text = outputs[0]["generated_text"].strip()
+            raw_text = outputs[0]["generated_text"]
+            text = cls._clean(raw_text, tokenizer)
             elapsed = time.perf_counter() - start
             return {
                 "text": text,
-                "model": model_name,
+                "model": model_to_use,
+                "profile": profile_name,
                 "tokens_generated": len(text.split()),
                 "elapsed_seconds": round(elapsed, 3),
             }
@@ -67,28 +117,50 @@ class InferenceEngine:
     @classmethod
     def stream(
         cls,
-        prompt: str,
+        prompt: str = "",
         model_name: str = "distilgpt2",
-        max_new_tokens: int = 256,
-        temperature: float = 0.7,
+        max_new_tokens: int | None = None,
+        temperature: float | None = None,
+        profile: ModelProfile | str | None = None,
+        system_prompt: str = "",
+        query: str = "",
     ) -> Generator[str, None, None]:
-        """Stream generated text tokens with fallback support."""
+        """Stream generated tokens with chat formatting and fallback support."""
+        target_profile = resolve(
+            profile.name
+            if isinstance(profile, ModelProfile)
+            else (profile if profile else model_name)
+        )
+        tokens_limit = (
+            max_new_tokens if max_new_tokens is not None else target_profile.max_new_tokens
+        )
+        temp = temperature if temperature is not None else target_profile.temperature
+
         try:
             from threading import Thread
 
             from transformers import TextIteratorStreamer
 
-            pipe = cls.get(model_name)
-            tokenizer = pipe.tokenizer
-            model = pipe.model
-            streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-            inputs = tokenizer([prompt], return_tensors="pt")
+            pipe = cls.get(target_profile)
+            tokenizer = getattr(pipe, "tokenizer", None)
+            model = getattr(pipe, "model", None)
+
+            user_text = query if query else prompt
+            formatted_prompt = format_prompt(
+                tokenizer, target_profile, system=system_prompt, user=user_text
+            )
+
+            streamer = TextIteratorStreamer(
+                tokenizer, skip_prompt=True, skip_special_tokens=True
+            )
+            inputs = tokenizer([formatted_prompt], return_tensors="pt")
             kwargs = {
                 **inputs,
                 "streamer": streamer,
-                "max_new_tokens": max_new_tokens,
-                "temperature": temperature,
-                "do_sample": temperature > 0,
+                "max_new_tokens": tokens_limit,
+                "temperature": temp,
+                "do_sample": temp > 0,
+                "repetition_penalty": 1.15,
             }
             thread = Thread(target=model.generate, kwargs=kwargs)
             thread.start()
@@ -101,13 +173,15 @@ class InferenceEngine:
             try:
                 res = cls.generate(
                     prompt=prompt,
-                    model_name=model_name,
-                    max_new_tokens=max_new_tokens,
-                    temperature=temperature,
+                    profile=target_profile,
+                    max_new_tokens=tokens_limit,
+                    temperature=temp,
+                    system_prompt=system_prompt,
+                    query=query,
                 )
                 words = res.get("text", "").split(" ")
             except Exception:
-                words = [f"Scientific response to {prompt[:25].strip()}."]
+                words = [f"Scientific response to {(query or prompt)[:25].strip()}."]
             for i, w in enumerate(words):
                 yield w + (" " if i < len(words) - 1 else "")
 
