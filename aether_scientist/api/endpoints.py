@@ -10,20 +10,31 @@ from pydantic import BaseModel, Field
 
 try:
     from aether_scientist.core import AetherConfig, AetherScientist
+    from aether_scientist.core.inference import InferenceEngine
+    from aether_scientist.core.profiles import get_profile, list_profiles
 
     CORE_AVAILABLE = True
 except ImportError:
     CORE_AVAILABLE = False
 
     class AetherConfig:
-        pass
+        profile: str = "offline"
 
     class AetherScientist:
         def __init__(self, config=None):
-            pass
+            self.config = config or AetherConfig()
 
-        def analyze(self, query):
+        def analyze(self, query, papers=None, use_rag=False):
             return {"result": "mock"}
+
+    class InferenceEngine:
+        device: str = "cpu"
+
+    def get_profile(name):
+        raise ValueError(f"Unknown profile '{name}'")
+
+    def list_profiles():
+        return []
 
 
 API_KEY_NAME = "X-API-Key"
@@ -33,6 +44,7 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 class AnalyzeRequest(BaseModel):
     query: str
     papers: list[str] | None = Field(default_factory=list)
+    profile: str | None = None
 
 
 class SynthesizeRequest(BaseModel):
@@ -78,11 +90,11 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 
-async def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
+async def get_api_key(api_key: str = Security(api_key_header)) -> str:
     _api_key = os.environ.get("AETHER_API_KEY", "dev-aether-key")
-    if api_key_header != _api_key:
+    if api_key != _api_key:
         raise HTTPException(status_code=403, detail="Could not validate credentials")
-    return api_key_header
+    return api_key
 
 
 async def check_rate_limit(request: Request) -> None:
@@ -91,9 +103,22 @@ async def check_rate_limit(request: Request) -> None:
         raise HTTPException(status_code=429, detail="Too many requests")
 
 
+def _validate_profile(profile_name: str | None, default_profile: str = "offline") -> str:
+    if not profile_name:
+        return default_profile
+    try:
+        return get_profile(profile_name).name
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
 def create_app(config: AetherConfig | None = None) -> FastAPI:
     app = FastAPI(title="AetherScientist API", version="1.0.0")
     _scientist = AetherScientist(config=config) if CORE_AVAILABLE else None
+
+    @app.get("/profiles", response_model=APIResponse)
+    async def get_profiles_list() -> APIResponse:
+        return APIResponse(status="success", data={"profiles": list_profiles()})
 
     @app.post(
         "/analyze",
@@ -101,27 +126,71 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
         dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
     )
     async def analyze(req: AnalyzeRequest) -> APIResponse:
-        return APIResponse(status="success", data={"analysis": f"Analyzed: {req.query}"})
+        default_prof = (
+            getattr(_scientist.config, "profile", "offline") if _scientist else "offline"
+        )
+        target_prof = _validate_profile(req.profile, default_prof)
+
+        if _scientist:
+            from aether_scientist.core.profiles import resolve
+
+            original_prof = _scientist.config.profile
+            _scientist.config.profile = target_prof
+            _scientist.profile = resolve(target_prof)
+            try:
+                res = _scientist.analyze(req.query, papers=req.papers)
+            finally:
+                _scientist.config.profile = original_prof
+                _scientist.profile = resolve(original_prof)
+            return APIResponse(
+                status="success",
+                data={
+                    "analysis": f"Analyzed: {req.query}",
+                    "result": res,
+                    "profile": target_prof,
+                    "device": InferenceEngine.device,
+                },
+            )
+        return APIResponse(
+            status="success",
+            data={
+                "analysis": f"Analyzed: {req.query}",
+                "profile": target_prof,
+                "device": getattr(InferenceEngine, "device", "cpu"),
+            },
+        )
 
     @app.post(
         "/analyze/stream",
         dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
     )
     async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
-        def event_generator():
-            from aether_scientist.core.inference import InferenceEngine
+        default_prof = (
+            getattr(_scientist.config, "profile", "offline") if _scientist else "offline"
+        )
+        target_prof = _validate_profile(req.profile, default_prof)
 
-            prompt = f"Question: {req.query}\nAnswer:"
+        def event_generator():
+            from aether_scientist.core.format import clean_output, get_stop_markers
+
             tokens = []
-            for token in InferenceEngine.stream(prompt):
+            for token in InferenceEngine.stream(query=req.query, profile=target_prof):
                 tokens.append(token)
                 yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
 
             yield f"event: sources\ndata: {json.dumps({'sources': []})}\n\n"
-            yield (
-                "event: done\ndata: "
-                f"{json.dumps({'status': 'completed', 'total_tokens': len(tokens)})}\n\n"
-            )
+            assembled = "".join(tokens)
+            pipe = getattr(InferenceEngine, "_pipe", None)
+            tokenizer = getattr(pipe, "tokenizer", None)
+            cleaned = clean_output(assembled, get_stop_markers(tokenizer))
+            done_payload = {
+                "status": "completed",
+                "total_tokens": len(tokens),
+                "text": cleaned,
+                "profile": target_prof,
+                "device": InferenceEngine.device,
+            }
+            yield f"event: done\ndata: {json.dumps(done_payload)}\n\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -161,7 +230,9 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
         dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
     )
     async def get_domains() -> APIResponse:
-        return APIResponse(status="success", data={"domains": ["physics", "biology", "chemistry"]})
+        return APIResponse(
+            status="success", data={"domains": ["physics", "biology", "chemistry"]}
+        )
 
     @app.get("/health", response_model=APIResponse)
     async def health_check() -> APIResponse:
@@ -170,6 +241,7 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
         )
 
     return app
+
 
 # Module-level app instance for uvicorn
 app = create_app()
