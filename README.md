@@ -43,7 +43,7 @@ Live Server-Sent Events (SSE) token stream:
 ```bash
 curl -N -X POST http://localhost:8000/analyze/stream \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: secret-aether-key" \
+  -H "X-API-Key: ${AETHER_API_KEY:-dev-aether-key}" \
   -d '{"query": "Explain entropy in thermodynamics"}'
 ```
 

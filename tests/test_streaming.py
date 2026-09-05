@@ -25,8 +25,9 @@ def test_api_analyze_stream_events(monkeypatch):
         lambda *args, **kwargs: iter(["Entropy ", "is ", "disorder."]),
     )
 
+    monkeypatch.setenv("AETHER_API_KEY", "test-key")
     client = TestClient(app)
-    headers = {"X-API-Key": "secret-aether-key"}
+    headers = {"X-API-Key": "test-key"}
     response = client.post(
         "/analyze/stream",
         json={"query": "Explain entropy"},

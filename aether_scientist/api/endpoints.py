@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from typing import Any
 
@@ -78,7 +79,8 @@ rate_limiter = RateLimiter()
 
 
 async def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
-    if api_key_header != "secret-aether-key":
+    _api_key = os.environ.get("AETHER_API_KEY", "dev-aether-key")
+    if api_key_header != _api_key:
         raise HTTPException(status_code=403, detail="Could not validate credentials")
     return api_key_header
 
