@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.1.0] - 2026-09-05
+
+### Added
+- Model profile registry with four presets (`offline`, `fast`, `balanced`, `quality`)
+- Chat-template prompt formatting and dynamic stop-marker output cleaning
+- Compute device auto-detection across CUDA, Apple Silicon MPS, and CPU
+- Multi-profile comparative benchmark mode in `aether bench --profile ...`
+- Profiles management CLI command `aether profiles`
+- API profile validation, `GET /profiles` endpoint, and response metadata
+
+### Changed
+- Inference engine is now profile-based with backward-compatible `model_name` mapping
+- Test suite expanded to 80 tests with 100% offline coverage
+
 ## [1.0.0] - 2026-09-05
 
 ### Added

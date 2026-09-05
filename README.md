@@ -1,6 +1,6 @@
 # AetherScientist
 
-Domain-specialized scientific research LLM framework with RAG, citation grounding, and live streaming.
+Domain-specialized scientific research LLM framework with profile presets, chat formatting, RAG, citation grounding, and live streaming.
 
 [![PyPI version](https://img.shields.io/pypi/v/aether-scientist.svg)](https://pypi.org/project/aether-scientist/)
 [![CI](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml/badge.svg)](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml)
@@ -21,19 +21,51 @@ pip install "aether-scientist[rag]"
 pip install -e ".[dev,rag]"
 ```
 
-Docker one-liner:
+## 🤖 Model Profiles
+
+AetherScientist features 4 built-in inference presets configured for scientific workflows:
+
+| Profile | Hugging Face Model | Chat Template | Tokens | Temp | Best For |
+|---|---|---|---|---|---|
+| `offline` | `distilgpt2` | No | 128 | 0.7 | Fast offline development & CI testing |
+| `fast` | `HuggingFaceTB/SmolLM2-360M-Instruct` | Yes | 256 | 0.3 | 360M instruct, CPU-friendly & lightweight |
+| `balanced` | `Qwen/Qwen2.5-0.5B-Instruct` | Yes | 384 | 0.3 | Best speed/accuracy balance for desktop |
+| `quality` | `Qwen/Qwen2.5-1.5B-Instruct` | Yes | 512 | 0.2 | Highest precision reasoning & literature synthesis |
+
+List profiles from CLI:
 ```bash
-docker run --rm -it -v $(pwd)/models:/models aether ask "What is entropy?" --domain physics
+aether profiles
 ```
+
+> [!NOTE]
+> Gated models (e.g. Llama-3, Mistral) are not bundled presets. To run gated checkpoints, authenticate with Hugging Face using `export HF_TOKEN="your_hf_token"`.
+
+## ⚡ Device Support Matrix
+
+InferenceEngine automatically detects and allocates compute accelerators:
+
+| Platform | Accelerator | Detection Target | Fallback |
+|---|---|---|---|
+| NVIDIA GPU | CUDA | `torch.cuda.is_available()` | CPU |
+| Apple Silicon | MPS | `torch.backends.mps.is_available()` | CPU |
+| General / x86 / ARM | CPU | Standard PyTorch tensor execution | Safe zero-crash mode |
+
+Verify active device: `aether info`
 
 ## 🔑 Environment Variables
 
-- `AETHER_API_KEY`: API authentication key for FastAPI endpoints (defaults to `dev-aether-key` for local development).
+- `AETHER_MODEL`: Overrides the default model profile (e.g. `export AETHER_MODEL=fast`).
+- `AETHER_API_KEY`: API authentication key for FastAPI endpoints (defaults to `dev-aether-key`).
+- `AETHER_ALLOW_DOWNLOADS`: Gatekeeper flag (`1` to permit downloading remote weights during benchmarks).
+- `HF_TOKEN`: Personal Hugging Face access token for gated models.
 - `HF_HOME`: Directory for caching model weights (default: `~/.cache/huggingface`).
 
 ## 💻 CLI Usage
 
 ```bash
+# Ask with an instruct profile preset
+aether ask "What is quantum decoherence?" --profile fast
+
 # Ingest and index scientific literature into knowledge store
 aether ingest paper1.pdf notes.md
 
@@ -41,30 +73,35 @@ aether ingest paper1.pdf notes.md
 aether search "quantum entanglement" -k 3
 
 # Ask with grounded RAG and live token streaming
-aether ask "What does the paper conclude?" --rag --stream
+aether ask "What does the paper conclude?" --profile balanced --rag --stream
 
-# Run benchmark evaluation across scientific domains
-aether bench --n 20 --json
+# Run multi-profile comparative benchmark
+aether bench --profile offline --profile fast --n 20
 
-# Domain inspection and runtime info
-aether domains && aether info
+# System diagnostics and configuration
+aether info
 ```
 
 ## 🌐 API & Live Streaming
 
-Start server:
+Start the API server:
 ```bash
 python -m aether_scientist.api
 # Or via uvicorn:
 uvicorn aether_scientist.api.endpoints:app --host 0.0.0.0 --port 8000
 ```
 
-Live Server-Sent Events (SSE) token stream:
+Fetch available profiles:
+```bash
+curl http://localhost:8000/profiles
+```
+
+Live Server-Sent Events (SSE) token stream with profile selection:
 ```bash
 curl -N -X POST http://localhost:8000/analyze/stream \
   -H "Content-Type: application/json" \
   -H "X-API-Key: ${AETHER_API_KEY:-dev-aether-key}" \
-  -d '{"query": "Explain entropy in thermodynamics"}'
+  -d '{"query": "Explain entropy in thermodynamics", "profile": "fast"}'
 ```
 
 ## 🧠 Python API with Grounded RAG
@@ -72,7 +109,7 @@ curl -N -X POST http://localhost:8000/analyze/stream \
 ```python
 from aether_scientist.core import AetherConfig, AetherScientist
 
-config = AetherConfig(model_name="distilgpt2")
+config = AetherConfig(profile="balanced")
 scientist = AetherScientist(config)
 
 # Index literature and ask grounded questions
@@ -81,15 +118,8 @@ result = scientist.analyze("Explain quantum decoherence", use_rag=True)
 
 print("Answer:", result["analysis_result"]["generated_text"])
 print("Confidence:", result["analysis_result"]["confidence"])
-for src in result["analysis_result"]["sources"]:
-    print(f"[{src['title']}]: {src['snippet']}")
-```
-
-## 🐳 Docker Deployment
-
-```bash
-docker compose up -d
-curl http://localhost:8000/health
+print("Profile:", result["profile"])
+print("Device:", result["device"])
 ```
 
 ## 📜 Contributing & License
