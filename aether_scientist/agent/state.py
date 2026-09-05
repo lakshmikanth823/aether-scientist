@@ -78,7 +78,7 @@ class ResearchState:
                         "index": new_idx,
                         "doc_id": doc_id,
                         "chunk_id": chunk_id,
-                        "title": title or fallback_title,
+                        "title": title if title and title != "Document" else fallback_title,
                         "source": str(source),
                         "snippet": snippet,
                         "score": round(score, 4),

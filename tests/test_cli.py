@@ -153,3 +153,43 @@ def test_cli_bench(monkeypatch):
     data = json.loads(result.output)
     assert data["total"] == 2
     assert "accuracy" in data
+
+
+def test_cli_research_empty_index(monkeypatch):
+    monkeypatch.setattr(
+        "aether_scientist.retrieval.store.VectorStore.__len__",
+        lambda self: 0,
+    )
+    result = runner.invoke(app, ["research", "What is entropy?"])
+    assert result.exit_code == 2
+    assert "No documents indexed" in result.output
+
+
+def test_cli_research_success(tmp_path, monkeypatch):
+    from aether_scientist.agent.pipeline import ResearchAgent, ResearchResult
+    from aether_scientist.agent.state import ResearchState
+
+    state = ResearchState(question="Explain entropy")
+    res = ResearchResult(
+        question="Explain entropy",
+        report_md="# Research Report: Explain entropy\n\n## References\n[1] Source 1",
+        state=state,
+        sources=[],
+        confidence=0.9,
+        coverage={},
+    )
+    events = [
+        {"event": "step", "kind": "plan", "description": "Decomposing"},
+        {"event": "result", "result_object": res, "data": res.to_dict()},
+    ]
+    monkeypatch.setattr(ResearchAgent, "stream", lambda *args, **kwargs: iter(events))
+    out_file = tmp_path / "research_report.md"
+
+    result = runner.invoke(
+        app,
+        ["research", "Explain entropy", "--out", str(out_file), "--profile", "fast"],
+    )
+    assert result.exit_code == 0
+    assert out_file.exists()
+    assert "# Research Report" in out_file.read_text(encoding="utf-8")
+

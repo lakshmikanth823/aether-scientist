@@ -57,9 +57,11 @@ def plan_llm(
         else:
             res = InferenceEngine.generate(prompt=prompt, profile=profile, max_new_tokens=128)
 
-        text = res.get("text", "")
-        lines = re.findall(r"(?:^\d+[\.\)]|\n\d+[\.\)])\s*([^\n]+)", "1. " + text)
-        parsed = [line.strip() for line in lines if line.strip()]
+        text = res.get("text", "").strip()
+        lines = re.findall(r"(?:^|\n)\s*\d+[\.\)]\s*([^\n]+)", text)
+        if not lines:
+            lines = re.findall(r"(?:^|\n)\s*\d+[\.\)]\s*([^\n]+)", "1. " + text)
+        parsed = [re.sub(r"^\d+[\.\)]\s*", "", line).strip() for line in lines if line.strip()]
         if len(parsed) >= 2:
             return parsed[:k]
     except Exception:
