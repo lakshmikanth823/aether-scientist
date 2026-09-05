@@ -1,7 +1,9 @@
+import json
 import time
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
+from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
@@ -98,6 +100,28 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
     )
     async def analyze(req: AnalyzeRequest) -> APIResponse:
         return APIResponse(status="success", data={"analysis": f"Analyzed: {req.query}"})
+
+    @app.post(
+        "/analyze/stream",
+        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
+    )
+    async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
+        def event_generator():
+            from aether_scientist.core.inference import InferenceEngine
+
+            prompt = f"Question: {req.query}\nAnswer:"
+            tokens = []
+            for token in InferenceEngine.stream(prompt):
+                tokens.append(token)
+                yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+
+            yield f"event: sources\ndata: {json.dumps({'sources': []})}\n\n"
+            yield (
+                "event: done\ndata: "
+                f"{json.dumps({'status': 'completed', 'total_tokens': len(tokens)})}\n\n"
+            )
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     @app.post(
         "/synthesize",
