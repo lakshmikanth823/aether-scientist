@@ -78,7 +78,7 @@ class VectorStore:
         q = query_vec.reshape(1, -1).astype(np.float32)
         if self.vectors.ndim > 1 and q.shape[1] != self.vectors.shape[1]:
             logger.warning(
-                f"Query dimension {q.shape[1]} does not match store dimension {self.vectors.shape[1]}."
+                f"Query dim {q.shape[1]} does not match store dim {self.vectors.shape[1]}."
             )
             return []
 
