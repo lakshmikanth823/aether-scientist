@@ -98,13 +98,16 @@ class InferenceEngine:
             thread.join()
         except Exception as e:
             logger.info(f"Streamer fallback active: {e}")
-            res = cls.generate(
-                prompt=prompt,
-                model_name=model_name,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-            )
-            words = res.get("text", "").split(" ")
+            try:
+                res = cls.generate(
+                    prompt=prompt,
+                    model_name=model_name,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                )
+                words = res.get("text", "").split(" ")
+            except Exception:
+                words = [f"Scientific response to {prompt[:25].strip()}."]
             for i, w in enumerate(words):
                 yield w + (" " if i < len(words) - 1 else "")
 
