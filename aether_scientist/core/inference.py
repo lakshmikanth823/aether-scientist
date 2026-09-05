@@ -9,12 +9,26 @@ from aether_scientist.core.profiles import PROFILES, ModelProfile, resolve
 logger = logging.getLogger(__name__)
 
 
+def _detect_device() -> str:
+    """Auto-detect available compute device: cuda -> mps -> cpu."""
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
+    except Exception:
+        return "cpu"
+
+
 class InferenceEngine:
     """Lazy-loaded singleton LLM pipeline for text generation."""
 
     _pipe: Any = None
     _model_name: str | None = None
-    device: str = "cpu"
+    device: str = _detect_device()
 
     @classmethod
     def get(cls, profile: ModelProfile | str = "offline") -> Any:
@@ -34,11 +48,16 @@ class InferenceEngine:
                     "transformers is required for inference. "
                     "Install with: pip install transformers"
                 ) from e
-            logger.info(f"Loading model: {model_name}")
+            logger.info(f"Loading model: {model_name} on device: {cls.device}")
+            pipe_kwargs: dict[str, Any] = {"model_kwargs": {"torch_dtype": "auto"}}
+            if cls.device == "cuda":
+                pipe_kwargs["device"] = 0
+            elif cls.device == "mps":
+                pipe_kwargs["device"] = "mps"
             cls._pipe = pipeline(
                 "text-generation",
                 model=model_name,
-                model_kwargs={"torch_dtype": "auto"},
+                **pipe_kwargs,
             )
             cls._model_name = model_name
         return cls._pipe
