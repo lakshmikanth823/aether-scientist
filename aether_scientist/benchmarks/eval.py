@@ -1,11 +1,13 @@
 import json
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from aether_scientist.core.inference import InferenceEngine
+from aether_scientist.core.profiles import resolve
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,9 @@ class EvalReport:
     avg_latency_ms: float
     citation_validity_rate: float
     details: list[dict[str, Any]]
+    profile: str = "offline"
+    model: str = "distilgpt2"
+    device: str = "cpu"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -59,11 +64,34 @@ def run_eval(
     n: int = 20,
     model: str = "distilgpt2",
     use_sciq: bool = False,
-) -> EvalReport:
-    """Run evaluation on benchmark questions."""
+    profiles: list[str] | str | None = None,
+    profile: str | None = None,
+    generator: Any = None,
+    real: bool = False,
+) -> EvalReport | dict[str, Any]:
+    """Run benchmark evaluation on a single profile or compare multiple profiles."""
+    if isinstance(profiles, list) and len(profiles) > 1:
+        return compare_profiles(
+            profiles=profiles, n=n, generator=generator, real=real, use_sciq=use_sciq
+        )
+
+    chosen = (
+        profiles[0]
+        if (isinstance(profiles, list) and profiles)
+        else (profiles or profile or model)
+    )
+    prof = resolve(chosen if isinstance(chosen, str) else None)
+
+    if real and os.environ.get("AETHER_ALLOW_DOWNLOADS") != "1":
+        logger.warning(
+            "Real downloads disabled. Set AETHER_ALLOW_DOWNLOADS=1 to permit downloads."
+        )
+
     questions = _load_quiz(use_sciq=use_sciq)[:n]
     if not questions:
-        return EvalReport(0, 0, 0.0, 0.0, 1.0, [])
+        return EvalReport(
+            0, 0, 0.0, 0.0, 1.0, [], prof.name, prof.model, InferenceEngine.device
+        )
 
     correct_count = 0
     total_latency = 0.0
@@ -78,7 +106,10 @@ def run_eval(
         )
 
         t0 = time.perf_counter()
-        gen = InferenceEngine.generate(prompt=prompt, model_name=model, max_new_tokens=32)
+        if generator is not None:
+            gen = generator(prompt=prompt, profile=prof, model_name=prof.model, max_new_tokens=32)
+        else:
+            gen = InferenceEngine.generate(prompt=prompt, profile=prof, max_new_tokens=32)
         latency_ms = (time.perf_counter() - t0) * 1000
         total_latency += latency_ms
 
@@ -102,14 +133,45 @@ def run_eval(
             }
         )
 
-    accuracy = round(correct_count / len(questions), 4) if questions else 0.0
-    avg_latency = round(total_latency / len(questions), 2) if questions else 0.0
-
     return EvalReport(
         total=len(questions),
         correct=correct_count,
-        accuracy=accuracy,
-        avg_latency_ms=avg_latency,
+        accuracy=round(correct_count / len(questions), 4) if questions else 0.0,
+        avg_latency_ms=round(total_latency / len(questions), 2) if questions else 0.0,
         citation_validity_rate=1.0,
         details=details,
+        profile=prof.name,
+        model=prof.model,
+        device=InferenceEngine.device,
     )
+
+
+def compare_profiles(
+    profiles: list[str],
+    n: int = 20,
+    generator: Any = None,
+    real: bool = False,
+    use_sciq: bool = False,
+) -> dict[str, Any]:
+    """Run comparative evaluation across multiple model profiles."""
+    results: dict[str, Any] = {}
+    summary: list[dict[str, Any]] = []
+
+    for name in profiles:
+        rep = run_eval(
+            n=n, profile=name, generator=generator, real=real, use_sciq=use_sciq
+        )
+        rep_dict = rep.to_dict() if isinstance(rep, EvalReport) else rep
+        results[name] = rep_dict
+        summary.append(
+            {
+                "profile": name,
+                "model": rep_dict["model"],
+                "accuracy": rep_dict["accuracy"],
+                "avg_latency_ms": rep_dict["avg_latency_ms"],
+                "citation_validity": rep_dict["citation_validity_rate"],
+                "device": rep_dict["device"],
+            }
+        )
+
+    return {"profiles": results, "summary": summary}
