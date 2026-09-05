@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 class AetherScientist:
     """Core class for AetherScientist."""
 
-    def __init__(self, config: AetherConfig) -> None:
-        self.config: AetherConfig = config
+    def __init__(self, config: AetherConfig | None = None) -> None:
+        self.config: AetherConfig = config or AetherConfig()
         self.tokenizer: ScientificTokenizer = ScientificTokenizer()
         self.adapters: dict[str, DomainAdapter] = self._load_adapters()
         self.efficiency_optimizer: EfficiencyOptimizer = EfficiencyOptimizer(
