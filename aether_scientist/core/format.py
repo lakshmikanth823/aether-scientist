@@ -1,5 +1,6 @@
 """Prompt formatting, stop marker resolution, and degenerate output guard."""
 
+import re
 from typing import Any
 
 from aether_scientist.core.profiles import ModelProfile
@@ -102,12 +103,17 @@ def find_loop_cut_index(text: str) -> int | None:
     return None
 
 
+
+_URL_RE = re.compile(r"https?://[^\s)\]]+")
+
+
 def clean_output(
     text: str,
     markers: list[str] | None = None,
     profile_name: str = "offline",
+    source_snippets: list[str] | None = None,
 ) -> str:
-    """Strip whitespace, cut at stop markers, and guard against degeneration."""
+    """Strip whitespace, cut at stop markers, guard degeneration, and strip fabricated URLs."""
     cleaned = text.strip()
     if markers:
         earliest = -1
@@ -129,6 +135,23 @@ def clean_output(
             return (
                 f"[Model produced degenerate output on profile '{profile_name}'. "
                 "Use a stronger profile (--profile balanced|quality).]"
+            )
+
+    # URL guard: strip URLs not present in source snippets
+    if source_snippets is not None:
+        all_src_text = " ".join(source_snippets)
+        allowed_urls = set(_URL_RE.findall(all_src_text))
+
+        def _url_filter(m: re.Match[str]) -> str:
+            return m.group(0) if m.group(0) in allowed_urls else ""
+
+        before_len = len(cleaned)
+        cleaned = _URL_RE.sub(_url_filter, cleaned).strip()
+        cleaned = re.sub(r"\s{2,}", " ", cleaned)
+        if before_len > 0 and len(cleaned) / before_len < 0.5:
+            return (
+                "Insufficient evidence in the indexed literature to answer reliably. "
+                "The model attempted to fabricate references."
             )
 
     return cleaned
