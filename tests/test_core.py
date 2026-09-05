@@ -1,6 +1,11 @@
 import pytest
 
-from aether_scientist.core.config import AetherConfig, EfficiencyConfig, TokenizerConfig
+from aether_scientist.core.config import (
+    AetherConfig,
+    EfficiencyConfig,
+    RagConfig,
+    TokenizerConfig,
+)
 from aether_scientist.core.inference import InferenceEngine
 from aether_scientist.core.model import AetherScientist
 from aether_scientist.core.tokenizer import ScientificTokenizer
@@ -27,6 +32,10 @@ def test_aether_config_defaults():
     assert isinstance(config.tokenizer.special_tokens, list)
     assert isinstance(config.efficiency, EfficiencyConfig)
     assert config.efficiency.use_flash_attention is True
+    assert isinstance(config.rag, RagConfig)
+    assert config.rag.chunk_size == 512
+    assert config.rag.overlap == 64
+    assert config.rag.backend == "auto"
 
 
 def test_aether_config_custom():

@@ -101,3 +101,55 @@ def test_docker_files_exist():
     assert docker_compose.exists()
     assert "services:" in docker_compose.read_text()
     assert dockerignore.exists()
+
+
+def test_cli_ingest_and_search(tmp_path):
+    doc = tmp_path / "notes.txt"
+    doc.write_text(
+        "Quantum entanglement occurs when paired particles share quantum states.",
+        encoding="utf-8",
+    )
+
+    res_ingest = runner.invoke(app, ["ingest", str(doc), "--json"])
+    assert res_ingest.exit_code == 0
+    data = json.loads(res_ingest.output)
+    assert data["status"] == "indexed"
+    assert data["docs"] == 1
+
+    res_search = runner.invoke(app, ["search", "entanglement", "-k", "1", "--json"])
+    assert res_search.exit_code == 0
+    search_data = json.loads(res_search.output)
+    assert len(search_data["hits"]) >= 1
+
+
+def test_cli_ask_stream(monkeypatch):
+    monkeypatch.setattr(
+        "aether_scientist.core.inference.InferenceEngine.stream",
+        lambda *args, **kwargs: iter(["Entanglement ", "is ", "real."]),
+    )
+    result = runner.invoke(app, ["ask", "What is entanglement?", "--stream"])
+    assert result.exit_code == 0
+    assert "Entanglement" in result.output
+
+
+def test_cli_ask_rag(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "aether_scientist.core.inference.InferenceEngine.generate",
+        lambda **kwargs: {"text": "Grounded answer statement [1]."},
+    )
+    result = runner.invoke(app, ["ask", "What is entanglement?", "--rag", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "analysis_result" in data
+
+
+def test_cli_bench(monkeypatch):
+    monkeypatch.setattr(
+        "aether_scientist.core.inference.InferenceEngine.generate",
+        lambda **kwargs: {"text": "Farad"},
+    )
+    result = runner.invoke(app, ["bench", "--n", "2", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["total"] == 2
+    assert "accuracy" in data
