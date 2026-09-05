@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.2.1] - 2026-09-05
+
+### Fixed
+- Handled vector dimension mismatch in `VectorStore.add` and `VectorStore.search` when switching embedding backends
+- Silenced Hugging Face Hub progress bars and authentication warnings in CLI JSON output
+- Ensured offline test isolation in `tests/test_streaming.py`
+
+### Added
+- Real-run empirical benchmarks documented in `BENCHMARKS.md`
+- Verbatim real-run evidence in `docs/examples/` (generation, RAG on Attention paper, research report)
+
 ## [1.2.0] - 2026-09-05
 
 ### Added
