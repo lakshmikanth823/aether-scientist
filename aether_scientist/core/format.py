@@ -154,4 +154,17 @@ def clean_output(
                 "The model attempted to fabricate references."
             )
 
+    # Sentence trim: if text does not end in .!?, cut at last sentence and strip dangling tails
+    if not cleaned.startswith("[Model produced degenerate"):
+        cleaned = re.sub(r"[\s*]*\d+[.):]?\s*\**$", "", cleaned).strip()
+        if cleaned and cleaned[-1] not in ".!?":
+            last_punct = -1
+            for punct in [". ", "! ", "? "]:
+                p_idx = cleaned.rfind(punct)
+                if p_idx != -1 and p_idx > last_punct:
+                    last_punct = p_idx
+            if last_punct != -1:
+                cleaned = cleaned[: last_punct + 1].strip()
+        cleaned = re.sub(r"[\s*]*\d+[.):]?\s*\**$", "", cleaned).strip()
+
     return cleaned
