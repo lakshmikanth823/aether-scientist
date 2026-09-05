@@ -47,6 +47,13 @@ class AnalyzeRequest(BaseModel):
     profile: str | None = None
 
 
+class ResearchRequest(BaseModel):
+    question: str
+    profile: str | None = None
+    k: int = 3
+    use_llm_planner: bool = False
+
+
 class SynthesizeRequest(BaseModel):
     domain: str
     paper_ids: list[str]
@@ -115,21 +122,19 @@ def _validate_profile(profile_name: str | None, default_profile: str = "offline"
 def create_app(config: AetherConfig | None = None) -> FastAPI:
     app = FastAPI(title="AetherScientist API", version="1.0.0")
     _scientist = AetherScientist(config=config) if CORE_AVAILABLE else None
+    auth = [Depends(get_api_key), Depends(check_rate_limit)]
+
+    def _prof(name: str | None) -> str:
+        default = getattr(_scientist.config, "profile", "offline") if _scientist else "offline"
+        return _validate_profile(name, default)
 
     @app.get("/profiles", response_model=APIResponse)
     async def get_profiles_list() -> APIResponse:
         return APIResponse(status="success", data={"profiles": list_profiles()})
 
-    @app.post(
-        "/analyze",
-        response_model=APIResponse,
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.post("/analyze", response_model=APIResponse, dependencies=auth)
     async def analyze(req: AnalyzeRequest) -> APIResponse:
-        default_prof = (
-            getattr(_scientist.config, "profile", "offline") if _scientist else "offline"
-        )
-        target_prof = _validate_profile(req.profile, default_prof)
+        target_prof = _prof(req.profile)
 
         if _scientist:
             from aether_scientist.core.profiles import resolve
@@ -160,15 +165,9 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
             },
         )
 
-    @app.post(
-        "/analyze/stream",
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.post("/analyze/stream", dependencies=auth)
     async def analyze_stream(req: AnalyzeRequest) -> StreamingResponse:
-        default_prof = (
-            getattr(_scientist.config, "profile", "offline") if _scientist else "offline"
-        )
-        target_prof = _validate_profile(req.profile, default_prof)
+        target_prof = _prof(req.profile)
 
         def event_generator():
             from aether_scientist.core.format import clean_output, get_stop_markers
@@ -194,41 +193,72 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-    @app.post(
-        "/synthesize",
-        response_model=APIResponse,
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.post("/research", response_model=APIResponse, dependencies=auth)
+    async def run_research(req: ResearchRequest) -> APIResponse:
+        target_prof = _prof(req.profile)
+        from aether_scientist.agent.pipeline import ResearchAgent
+        from aether_scientist.core.config import AetherConfig
+
+        agent = ResearchAgent(AetherConfig(profile=target_prof))
+        if len(agent.rag_engine.store) == 0:
+            raise HTTPException(
+                status_code=409, detail="No documents indexed. Run: aether ingest <paths>"
+            )
+        try:
+            res = agent.run(
+                question=req.question,
+                k=req.k,
+                use_llm_planner=req.use_llm_planner,
+                profile=target_prof,
+            )
+            return APIResponse(status="success", data=res.to_dict())
+        except IndexError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+
+    @app.post("/research/stream", dependencies=auth)
+    async def run_research_stream(req: ResearchRequest) -> StreamingResponse:
+        target_prof = _prof(req.profile)
+        from aether_scientist.agent.pipeline import ResearchAgent
+        from aether_scientist.core.config import AetherConfig
+
+        agent = ResearchAgent(AetherConfig(profile=target_prof))
+        if len(agent.rag_engine.store) == 0:
+            raise HTTPException(
+                status_code=409, detail="No documents indexed. Run: aether ingest <paths>"
+            )
+
+        def event_generator():
+            for event in agent.stream(
+                question=req.question,
+                k=req.k,
+                use_llm_planner=req.use_llm_planner,
+                profile=target_prof,
+            ):
+                event_type = event.get("event", "step")
+                clean_event = {k: v for k, v in event.items() if k != "result_object"}
+                yield f"event: {event_type}\ndata: {json.dumps(clean_event)}\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    @app.post("/synthesize", response_model=APIResponse, dependencies=auth)
     async def synthesize(req: SynthesizeRequest) -> APIResponse:
         return APIResponse(
             status="success", data={"synthesis": f"Synthesized for domain: {req.domain}"}
         )
 
-    @app.post(
-        "/hypothesize",
-        response_model=APIResponse,
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.post("/hypothesize", response_model=APIResponse, dependencies=auth)
     async def hypothesize(req: HypothesizeRequest) -> APIResponse:
         return APIResponse(
             status="success", data={"hypothesis": "Generated hypothesis from observations."}
         )
 
-    @app.post(
-        "/experiment",
-        response_model=APIResponse,
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.post("/experiment", response_model=APIResponse, dependencies=auth)
     async def experiment(req: ExperimentRequest) -> APIResponse:
         return APIResponse(
             status="success", data={"experiment_design": "Detailed experiment plan."}
         )
 
-    @app.get(
-        "/domains",
-        response_model=APIResponse,
-        dependencies=[Depends(get_api_key), Depends(check_rate_limit)],
-    )
+    @app.get("/domains", response_model=APIResponse, dependencies=auth)
     async def get_domains() -> APIResponse:
         return APIResponse(
             status="success", data={"domains": ["physics", "biology", "chemistry"]}
