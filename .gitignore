@@ -43,3 +43,8 @@ htmlcov/
 models/
 .aether_cache/
 *.log
+
+# Agent artifacts
+walkthrough.md
+task.md
+implementation_plan.md
