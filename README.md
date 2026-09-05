@@ -10,70 +10,69 @@ Domain-specialized multimodal LLM framework for scientific research.
 ## ⚡ Quick Start
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,rag]"
 ```
 
 ## 💻 CLI Usage
 
 ```bash
-# Ask a scientific question routed to domain specialist
-aether ask "What is quantum entanglement?" --domain physics
+# Ingest and index scientific literature into knowledge store
+aether ingest paper1.pdf notes.md
 
-# Analyze papers with specific focus
-aether analyze -p paper1.pdf -p paper2.pdf --focus "reaction mechanisms"
+# Search indexed knowledge base
+aether search "quantum entanglement" -k 3
 
-# List loaded domain adapters
-aether domains --json
+# Ask with grounded RAG and live token streaming
+aether ask "What does the paper conclude?" --rag --stream
 
-# View configuration and model status
-aether info
+# Run benchmark evaluation across scientific domains
+aether bench --n 20 --json
+
+# Domain inspection and runtime info
+aether domains && aether info
 ```
 
-## 🌐 API Service
+## 🌐 API & Live Streaming
 
-Start the FastAPI server:
+Start server:
 ```bash
 python -m aether_scientist.api
-# Or via uvicorn:
-uvicorn aether_scientist.api.endpoints:app --host 0.0.0.0 --port 8000
 ```
 
-Query the API via curl:
+Live Server-Sent Events (SSE) token stream:
 ```bash
-curl -X POST http://localhost:8000/analyze \
+curl -N -X POST http://localhost:8000/analyze/stream \
   -H "Content-Type: application/json" \
   -H "X-API-Key: secret-aether-key" \
   -d '{"query": "Explain entropy in thermodynamics"}'
 ```
 
-## 🐳 Docker Deployment
+## 🧠 Python API with Grounded RAG
 
-Run CLI in container:
-```bash
-docker build -t aether .
-docker run --rm -v $(pwd)/models:/models aether ask "What is CRISPR-Cas9?" --domain biology
+```python
+from aether_scientist.core import AetherConfig, AetherScientist
+
+config = AetherConfig(model_name="distilgpt2")
+scientist = AetherScientist(config)
+
+# Index literature and ask grounded questions
+scientist.rag_engine.index(["literature/quantum_physics.pdf"])
+result = scientist.analyze("Explain quantum decoherence", use_rag=True)
+
+print("Answer:", result["analysis_result"]["generated_text"])
+print("Confidence:", result["analysis_result"]["confidence"])
+for src in result["analysis_result"]["sources"]:
+    print(f"[{src['title']}]: {src['snippet']}")
 ```
 
-Or spin up the full API service with docker-compose:
+## 🐳 Docker Deployment
+
 ```bash
 docker compose up -d
 curl http://localhost:8000/health
 ```
 
-## 🧠 Python API
-
-```python
-from aether_scientist.core import AetherConfig, AetherScientist
-
-config = AetherConfig(model_name="distilgpt2", domains=["physics", "chemistry"])
-scientist = AetherScientist(config)
-
-result = scientist.analyze("How does enthalpy change in exothermic reactions?")
-print(result["analysis_result"]["generated_text"])
-```
-
 ## 📜 Contributing & License
 
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`
-- Branch naming: `feature/[issue#]-[desc]`, `fix/[issue#]-[bug]`
 - Licensed under the MIT License.
