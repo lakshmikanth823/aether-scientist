@@ -45,9 +45,23 @@ class EmbeddingEngine:
         if self._sbert_model is not None:
             return True
         try:
-            from sentence_transformers import SentenceTransformer
+            import os
+            import warnings
 
-            self._sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
+            os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+            os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+            try:
+                from huggingface_hub import utils as hf_utils
+
+                hf_utils.logging.set_verbosity_error()
+            except Exception:
+                pass
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                from sentence_transformers import SentenceTransformer
+
+                self._sbert_model = SentenceTransformer("all-MiniLM-L6-v2")
             return True
         except Exception as e:
             logger.info(f"sentence-transformers unavailable, falling back to tfidf: {e}")

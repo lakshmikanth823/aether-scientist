@@ -1,10 +1,13 @@
 import json
+import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
 
 from aether_scientist.retrieval.chunker import Chunk
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -41,6 +44,19 @@ class VectorStore:
                 f"Vectors count {vectors.shape[0]} does not match chunks count {len(chunks)}"
             )
 
+        if (
+            self.vectors is not None
+            and self.vectors.size > 0
+            and self.vectors.shape[1] != vectors.shape[1]
+        ):
+            logger.warning(
+                f"Vector dimension mismatch: store has dim {self.vectors.shape[1]}, "
+                f"incoming has dim {vectors.shape[1]}. Resetting store to match new model."
+            )
+            self.chunks.clear()
+            self.metadata.clear()
+            self.vectors = None
+
         srcs = sources or ["" for _ in chunks]
         ttls = titles or ["" for _ in chunks]
         for c, s, t in zip(chunks, srcs, ttls, strict=False):
@@ -60,6 +76,12 @@ class VectorStore:
             return []
 
         q = query_vec.reshape(1, -1).astype(np.float32)
+        if self.vectors.ndim > 1 and q.shape[1] != self.vectors.shape[1]:
+            logger.warning(
+                f"Query dimension {q.shape[1]} does not match store dimension {self.vectors.shape[1]}."
+            )
+            return []
+
         norm = np.linalg.norm(q)
         if norm > 0:
             q = q / norm

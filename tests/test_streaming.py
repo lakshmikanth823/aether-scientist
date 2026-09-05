@@ -11,6 +11,15 @@ def test_inference_engine_stream(monkeypatch):
         "generate",
         lambda **kwargs: {"text": "Entropy increases over time continuously."},
     )
+    monkeypatch.setattr(
+        InferenceEngine,
+        "get",
+        classmethod(
+            lambda cls, *args, **kwargs: (_ for _ in ()).throw(
+                RuntimeError("Offline test streamer fallback")
+            )
+        ),
+    )
 
     tokens = list(InferenceEngine.stream("What is entropy?"))
     assert len(tokens) >= 3

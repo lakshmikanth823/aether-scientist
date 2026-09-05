@@ -42,6 +42,23 @@ class InferenceEngine:
 
         if cls._pipe is None or cls._model_name != model_name:
             try:
+                import os
+
+                os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+                os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+                try:
+                    from huggingface_hub import utils as hf_utils
+
+                    hf_utils.logging.set_verbosity_error()
+                except Exception:
+                    pass
+                try:
+                    from transformers.utils import logging as tf_logging
+
+                    tf_logging.set_verbosity_error()
+                except Exception:
+                    pass
+
                 from transformers import pipeline
             except ImportError as e:
                 raise RuntimeError(
