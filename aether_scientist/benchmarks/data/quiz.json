@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "domain": "physics",
+    "question": "What is the SI unit of electrical capacitance?",
+    "options": ["Farad", "Henry", "Tesla", "Weber"],
+    "answer": "Farad"
+  },
+  {
+    "id": 2,
+    "domain": "physics",
+    "question": "Which principle states that simultaneous position and momentum cannot be precisely determined?",
+    "options": ["Heisenberg Uncertainty Principle", "Pauli Exclusion Principle", "Equivalence Principle", "Mach Principle"],
+    "answer": "Heisenberg Uncertainty Principle"
+  },
+  {
+    "id": 3,
+    "domain": "physics",
+    "question": "What is the thermodynamic quantity that measures molecular disorder?",
+    "options": ["Entropy", "Enthalpy", "Gibbs Free Energy", "Helmholtz Energy"],
+    "answer": "Entropy"
+  },
+  {
+    "id": 4,
+    "domain": "physics",
+    "question": "Which elementary particle mediates the electromagnetic force?",
+    "options": ["Photon", "Gluon", "Z boson", "Graviton"],
+    "answer": "Photon"
+  },
+  {
+    "id": 5,
+    "domain": "physics",
+    "question": "What is the value of the speed of light in vacuum in SI units?",
+    "options": ["299,792,458 m/s", "300,000,000 m/s", "299,792 km/h", "3.0 x 10^7 m/s"],
+    "answer": "299,792,458 m/s"
+  },
+  {
+    "id": 6,
+    "domain": "physics",
+    "question": "In special relativity, which quantity is invariant across all inertial frames?",
+    "options": ["Spacetime interval", "Time duration", "Coordinate length", "Total energy"],
+    "answer": "Spacetime interval"
+  },
+  {
+    "id": 7,
+    "domain": "physics",
+    "question": "What phenomenon occurs when light bends as it passes through a narrow aperture?",
+    "options": ["Diffraction", "Refraction", "Polarization", "Dispersion"],
+    "answer": "Diffraction"
+  },
+  {
+    "id": 8,
+    "domain": "chemistry",
+    "question": "What is the geometric molecular shape of sulfur hexafluoride (SF6)?",
+    "options": ["Octahedral", "Tetrahedral", "Trigonal bipyramidal", "Square planar"],
+    "answer": "Octahedral"
+  },
+  {
+    "id": 9,
+    "domain": "chemistry",
+    "question": "Which thermodynamic equation relates Gibbs free energy to enthalpy and entropy?",
+    "options": ["ΔG = ΔH - TΔS", "ΔG = ΔH + TΔS", "ΔG = ΔU + PΔV", "ΔG = -nFE"],
+    "answer": "ΔG = ΔH - TΔS"
+  },
+  {
+    "id": 10,
+    "domain": "chemistry",
+    "question": "What kind of reaction combines an acid and a base to form salt and water?",
+    "options": ["Neutralization", "Oxidation", "Precipitation", "Electrolysis"],
+    "answer": "Neutralization"
+  },
+  {
+    "id": 11,
+    "domain": "chemistry",
+    "question": "Which functional group is characterized by a carbon double-bonded to oxygen and single-bonded to OH?",
+    "options": ["Carboxylic acid", "Ester", "Ketone", "Aldehyde"],
+    "answer": "Carboxylic acid"
+  },
+  {
+    "id": 12,
+    "domain": "chemistry",
+    "question": "What is the hybridization of carbon in ethylene (C2H4)?",
+    "options": ["sp2", "sp3", "sp", "dsp3"],
+    "answer": "sp2"
+  },
+  {
+    "id": 13,
+    "domain": "chemistry",
+    "question": "Which principle states that an orbital can hold a maximum of two electrons with opposite spins?",
+    "options": ["Pauli Exclusion Principle", "Hund Rule", "Aufbau Principle", "Le Chatelier Principle"],
+    "answer": "Pauli Exclusion Principle"
+  },
+  {
+    "id": 14,
+    "domain": "chemistry",
+    "question": "What is the pH of a 0.001 M hydrochloric acid (HCl) aqueous solution?",
+    "options": ["3.0", "1.0", "7.0", "11.0"],
+    "answer": "3.0"
+  },
+  {
+    "id": 15,
+    "domain": "biology",
+    "question": "Which organelle is primarily responsible for cellular ATP synthesis?",
+    "options": ["Mitochondria", "Ribosome", "Endoplasmic reticulum", "Golgi apparatus"],
+    "answer": "Mitochondria"
+  },
+  {
+    "id": 16,
+    "domain": "biology",
+    "question": "What molecular tool is derived from bacterial immune systems for targeted genome editing?",
+    "options": ["CRISPR-Cas9", "Sanger sequencing", "Western blot", "Flow cytometry"],
+    "answer": "CRISPR-Cas9"
+  },
+  {
+    "id": 17,
+    "domain": "biology",
+    "question": "During which phase of meiosis does homologous chromosome crossing over occur?",
+    "options": ["Prophase I", "Metaphase II", "Anaphase I", "Telophase II"],
+    "answer": "Prophase I"
+  },
+  {
+    "id": 18,
+    "domain": "biology",
+    "question": "Which nitrogenous base pairs with adenine in RNA molecules?",
+    "options": ["Uracil", "Thymine", "Cytosine", "Guanine"],
+    "answer": "Uracil"
+  },
+  {
+    "id": 19,
+    "domain": "biology",
+    "question": "What is the primary protein responsible for carrying oxygen in human red blood cells?",
+    "options": ["Hemoglobin", "Myoglobin", "Collagen", "Albumin"],
+    "answer": "Hemoglobin"
+  },
+  {
+    "id": 20,
+    "domain": "biology",
+    "question": "Which enzyme unzips the double helix during DNA replication?",
+    "options": ["Helicase", "DNA Polymerase", "Ligase", "Primase"],
+    "answer": "Helicase"
+  }
+]
