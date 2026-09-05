@@ -1,10 +1,37 @@
 import hashlib
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from aether_scientist.multimodal.captioner import CaptionEngine
 from aether_scientist.retrieval.images import ImageAsset, extract_images
+
+# Regex to strip literal special-token strings before chunking
+_SPECIAL_TOKEN_RE = re.compile(r"<(?:EOS|pad|s|/s)>|<\|[^|]*\|>")
+
+# Boilerplate patterns to skip when extracting title
+_BOILERPLATE_RE = re.compile(
+    r"(?i)(?:arxiv|license|copyright|attribution|creative\s+commons|preprint|"
+    r"under\s+review|published\s+in|proceedings\s+of|permission|reproduce|"
+    r"scholarly\s+works|all\s+rights\s+reserved|author\s+manuscript)",
+)
+
+
+def _sanitize_text(text: str) -> str:
+    """Replace literal special-token strings with a space."""
+    return _SPECIAL_TOKEN_RE.sub(" ", text)
+
+
+def _extract_title(text: str, pdf_meta_title: str, stem: str) -> str:
+    """Extract best-effort document title."""
+    if pdf_meta_title and pdf_meta_title.strip():
+        return pdf_meta_title.strip()
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    for ln in lines:
+        if not _BOILERPLATE_RE.search(ln) and len(ln) > 3:
+            return ln.lstrip("#").strip()
+    return stem or "Untitled"
 
 
 @dataclass
@@ -40,7 +67,7 @@ def ingest_file(
             ) from e
 
         doc = fitz.open(p)
-        title = doc.metadata.get("title") if doc.metadata else ""
+        meta_title = doc.metadata.get("title", "") if doc.metadata else ""
 
         images: list[ImageAsset] = []
         if extract_figs:
@@ -65,13 +92,11 @@ def ingest_file(
                     fig_idx += 1
             pages_text.append(p_text)
 
-        text = "\n".join(pages_text)
+        raw_text = "\n".join(pages_text)
+        text = _sanitize_text(raw_text)
         doc.close()
 
-        if not title:
-            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-            title = lines[0] if lines else p.stem
-
+        title = _extract_title(text, meta_title, p.stem)
         doc_id = hashlib.sha256(f"{p.name}:{p.stat().st_size}".encode()).hexdigest()[:12]
         return [
             Document(
@@ -84,8 +109,8 @@ def ingest_file(
             )
         ]
 
-    text = p.read_text(encoding="utf-8", errors="replace")
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    title = lines[0].lstrip("#").strip() if lines else p.stem
+    raw_text = p.read_text(encoding="utf-8", errors="replace")
+    text = _sanitize_text(raw_text)
+    title = _extract_title(text, "", p.stem)
     doc_id = hashlib.sha256(f"{p.name}:{p.stat().st_size}".encode()).hexdigest()[:12]
     return [Document(doc_id=doc_id, source=str(p), title=title, text=text)]
