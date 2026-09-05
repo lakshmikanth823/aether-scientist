@@ -78,8 +78,45 @@ aether ask "What does the paper conclude?" --profile balanced --rag --stream
 # Run multi-profile comparative benchmark
 aether bench --profile offline --profile fast --n 20
 
+# Autonomous multi-step research agent
+aether research "CRISPR gene editing mechanisms" --out report.md
+
 # System diagnostics and configuration
 aether info
+```
+
+## 🔬 Autonomous Research Agent
+
+AetherScientist features a multi-step research pipeline (`plan -> retrieve -> read -> synthesize -> cite`) that surveys your indexed literature and compiles a cited Markdown report:
+
+```bash
+# 1. Ingest literature or notes
+aether ingest notes.md paper1.pdf
+
+# 2. Run autonomous research agent
+aether research "CRISPR gene editing mechanisms" --profile balanced --out report.md
+```
+
+### Agent CLI Options:
+- `--profile <name>`: Model preset (`offline`, `fast`, `balanced`, `quality`). Default: `balanced`.
+- `-k <int>`: Top passages retrieved per sub-question (default: 3).
+- `--out <path>`: Write rendered report to a Markdown file.
+- `--json`: Output structured JSON (state, sub-queries, references, coverage).
+- `--llm-planner`: Use model-driven query planning instead of heuristic template planner.
+
+### Sample Report Excerpt:
+```markdown
+# Research Report: CRISPR gene editing mechanisms
+
+## Executive Summary
+Recent findings demonstrate precise double-strand breaks guided by sgRNA [1].
+
+## 1. Underlying Principles & Mechanisms
+Cas9 endonuclease induces targeted cleavage at protospacer adjacent motifs [1][2].
+
+## References
+- [1] notes.md (score: 0.88)
+- [2] paper1.pdf (score: 0.82)
 ```
 
 ## 🌐 API & Live Streaming

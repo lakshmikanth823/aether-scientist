@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.2.0] - 2026-09-05
+
+### Added
+- Autonomous research agent pipeline (`plan -> retrieve -> synthesize -> report`)
+- Heuristic query planner generating targeted sub-questions with optional LLM planner mode
+- Research state tracking deduplicated passages, 1-based global citation indexing, and topic coverage
+- Markdown report renderer with validated inline citations and References section
+- CLI command `aether research` with live step progress, `--out`, `--k`, and `--json` support
+- REST API endpoint `POST /research` and SSE streaming endpoint `POST /research/stream`
+- 100% offline agent test suite (planner, state, report, pipeline, CLI, API)
+
 ## [1.1.0] - 2026-09-05
 
 ### Added
