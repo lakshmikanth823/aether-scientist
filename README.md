@@ -3,11 +3,13 @@ title: AetherScientist
 emoji: 🔬
 colorFrom: blue
 colorTo: indigo
-sdk: streamlit
-sdk_version: "1.30.0"
+sdk: gradio
+sdk_version: 6.26.0
+python_version: "3.12"
 app_file: app.py
 pinned: false
 license: mit
+short_description: Scientific research LLM with RAG, citations & vision
 ---
 
 # AetherScientist
