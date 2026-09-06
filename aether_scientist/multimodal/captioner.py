@@ -41,14 +41,28 @@ class CaptionEngine:
 
             try:
                 self._pipeline = pipeline("image-to-text", model=self._model_name)
-            except Exception as e:
-                err = "vision model failed to load (network/HF access required)"
-                self._pipeline_error = err
-                self._pipeline = False
-                logger.warning(f"Failed to load vision captioning pipeline: {e}")
-                if raise_on_error:
-                    raise RuntimeError(err) from e
-                return False
+            except Exception:
+                try:
+                    from transformers import BlipForConditionalGeneration, BlipProcessor
+
+                    proc = BlipProcessor.from_pretrained(self._model_name)
+                    mod = BlipForConditionalGeneration.from_pretrained(self._model_name)
+
+                    def _generate_caption(img: Any) -> list[dict[str, str]]:
+                        inputs = proc(img, return_tensors="pt")
+                        out = mod.generate(**inputs, max_new_tokens=64)
+                        cap = proc.decode(out[0], skip_special_tokens=True)
+                        return [{"generated_text": cap}]
+
+                    self._pipeline = _generate_caption
+                except Exception as e:
+                    err = "vision model failed to load (network/HF access required)"
+                    self._pipeline_error = err
+                    self._pipeline = False
+                    logger.warning(f"Failed to load vision captioning pipeline: {e}")
+                    if raise_on_error:
+                        raise RuntimeError(err) from e
+                    return False
 
         if not self._pipeline and raise_on_error:
             raise RuntimeError(
