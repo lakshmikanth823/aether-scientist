@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -12,6 +13,18 @@ from aether_scientist.core.profiles import resolve
 logger = logging.getLogger(__name__)
 
 
+def compute_citation_validity(answers: list[str], n_contexts: int = 4) -> float:
+    """Compute fraction of answers containing at least one valid [n] bracket."""
+    if not answers:
+        return 0.0
+    valid_count = 0
+    for ans in answers:
+        cites = [int(c) for c in re.findall(r"\[(\d+)\]", ans)]
+        if any(1 <= c <= n_contexts for c in cites):
+            valid_count += 1
+    return round(valid_count / len(answers), 4)
+
+
 @dataclass
 class EvalReport:
     """Benchmark evaluation report with accuracy and latency metrics."""
@@ -20,8 +33,8 @@ class EvalReport:
     correct: int
     accuracy: float
     avg_latency_ms: float
-    citation_validity_rate: float
     details: list[dict[str, Any]]
+    citation_validity_rate: float | None = None
     profile: str = "offline"
     model: str = "distilgpt2"
     device: str = "cpu"
@@ -68,6 +81,8 @@ def run_eval(
     profile: str | None = None,
     generator: Any = None,
     real: bool = False,
+    rag_answers: list[str] | None = None,
+    n_contexts: int = 4,
 ) -> EvalReport | dict[str, Any]:
     """Run benchmark evaluation on a single profile or compare multiple profiles."""
     if isinstance(profiles, list) and len(profiles) > 1:
@@ -90,7 +105,7 @@ def run_eval(
     questions = _load_quiz(use_sciq=use_sciq)[:n]
     if not questions:
         return EvalReport(
-            0, 0, 0.0, 0.0, 1.0, [], prof.name, prof.model, InferenceEngine.device
+            0, 0, 0.0, 0.0, [], None, prof.name, prof.model, InferenceEngine.device
         )
 
     correct_count = 0
@@ -133,13 +148,18 @@ def run_eval(
             }
         )
 
+    cit_rate = (
+        compute_citation_validity(rag_answers, n_contexts=n_contexts)
+        if rag_answers is not None
+        else None
+    )
     return EvalReport(
         total=len(questions),
         correct=correct_count,
         accuracy=round(correct_count / len(questions), 4) if questions else 0.0,
         avg_latency_ms=round(total_latency / len(questions), 2) if questions else 0.0,
-        citation_validity_rate=1.0,
         details=details,
+        citation_validity_rate=cit_rate,
         profile=prof.name,
         model=prof.model,
         device=InferenceEngine.device,
