@@ -269,3 +269,19 @@ def test_rag_index_force_clears_store(tmp_path):
     assert count_after_rebuild == count_after_first  # Same docs, same count (not doubled)
 
 
+def test_ingest_markdown_sections_tracked(tmp_path):
+    md_file = tmp_path / "paper.md"
+    md_file.write_text(
+        "# Section 1\n\nIntroductory paragraphs for section 1.\n\n"
+        "## Section 2\n\nDetailed methodologies and findings for section 2.\n",
+        encoding="utf-8",
+    )
+    docs = ingest_file(md_file)
+    assert len(docs) == 1
+    chunks = docs[0].chunks
+    assert len(chunks) >= 2
+    assert chunks[0].section == "# Section 1"
+    assert chunks[1].section == "## Section 2"
+
+
+

@@ -12,16 +12,26 @@ def test_caption_missing_file():
 
 
 def test_caption_missing_pil(tmp_path):
+    import pytest
+
     img_file = tmp_path / "fig.png"
     img_file.write_bytes(b"dummy image data")
     CaptionEngine.reset()
     engine = CaptionEngine()
     with patch.dict(sys.modules, {"PIL": None, "PIL.Image": None}):
         res = engine.caption(img_file)
-        assert "vision dependencies not installed" in res
+        assert "vision dependencies not installed (pip install aether-scientist[vision])" in res
+
+        with pytest.raises(RuntimeError) as exc:
+            engine.caption(img_file, raise_on_error=True)
+        assert "vision dependencies not installed (pip install aether-scientist[vision])" in str(
+            exc.value
+        )
 
 
 def test_caption_pipeline_failure(tmp_path):
+    import pytest
+
     img_file = tmp_path / "fig.png"
     img_file.write_bytes(b"dummy image data")
     CaptionEngine.reset()
@@ -32,7 +42,11 @@ def test_caption_pipeline_failure(tmp_path):
         patch.object(engine, "_get_pipeline", return_value=False),
     ):
         res = engine.caption(img_file)
-        assert "vision dependencies not installed" in res
+        assert "vision model failed to load (network/HF access required)" in res
+
+        with pytest.raises(RuntimeError) as exc:
+            engine.caption(img_file, raise_on_error=True)
+        assert "vision model failed to load (network/HF access required)" in str(exc.value)
 
 
 def test_caption_success(tmp_path):

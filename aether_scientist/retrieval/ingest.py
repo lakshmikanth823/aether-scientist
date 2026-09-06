@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from aether_scientist.multimodal.captioner import CaptionEngine
+from aether_scientist.retrieval.chunker import chunk
 from aether_scientist.retrieval.images import ImageAsset, extract_images
 
 # Regex to strip literal special-token strings before chunking
@@ -98,12 +99,14 @@ def ingest_file(
 
         title = _extract_title(text, meta_title, p.stem)
         doc_id = hashlib.sha256(f"{p.name}:{p.stat().st_size}".encode()).hexdigest()[:12]
+        chunks = chunk(text, doc_id=doc_id)
         return [
             Document(
                 doc_id=doc_id,
                 source=str(p),
                 title=title,
                 text=text,
+                chunks=chunks,
                 images=images,
                 captions=captions,
             )
@@ -113,4 +116,5 @@ def ingest_file(
     text = _sanitize_text(raw_text)
     title = _extract_title(text, "", p.stem)
     doc_id = hashlib.sha256(f"{p.name}:{p.stat().st_size}".encode()).hexdigest()[:12]
-    return [Document(doc_id=doc_id, source=str(p), title=title, text=text)]
+    chunks = chunk(text, doc_id=doc_id)
+    return [Document(doc_id=doc_id, source=str(p), title=title, text=text, chunks=chunks)]
