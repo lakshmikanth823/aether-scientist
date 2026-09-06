@@ -219,3 +219,32 @@ def test_analyze_mocked_index_error_returns_clean_500(monkeypatch):
     assert "IndexError" not in response.text
 
 
+def test_analyze_stream_sources_event_with_rag(monkeypatch):
+    monkeypatch.setenv("AETHER_API_KEY", "test-key")
+    monkeypatch.setattr(
+        InferenceEngine,
+        "stream",
+        lambda *args, **kwargs: iter(["Analysis ", "done."]),
+    )
+    from aether_scientist.retrieval.engine import GroundedAnswer, RAGEngine, Source
+
+    mock_src = Source(
+        doc_id="d1", title="Paper 1", location="chunk_0", snippet="text", score=0.9
+    )
+    mock_ans = GroundedAnswer(answer="Grounded answer", sources=[mock_src], confidence=0.9)
+    monkeypatch.setattr(RAGEngine, "grounded_generate", lambda *args, **kwargs: mock_ans)
+    monkeypatch.setattr(
+        "aether_scientist.retrieval.store.VectorStore.__len__",
+        lambda self: 5,
+    )
+
+    client = TestClient(app)
+    headers = {"X-API-Key": "test-key"}
+    response = client.post(
+        "/analyze/stream",
+        json={"query": "Explain entropy", "use_rag": True},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert "event: sources" in response.text
+    assert "Paper 1" in response.text

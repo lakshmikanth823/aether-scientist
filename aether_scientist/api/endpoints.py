@@ -143,14 +143,9 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
                     "device": InferenceEngine.device,
                 }
                 return APIResponse(status="success", data=d)
-            return APIResponse(
-                status="success",
-                data={
-                    "analysis": f"Analyzed: {req.query}",
-                    "profile": target_prof,
-                    "device": getattr(InferenceEngine, "device", "cpu"),
-                },
-            )
+            dev = getattr(InferenceEngine, "device", "cpu")
+            d = {"analysis": f"Analyzed: {req.query}", "profile": target_prof, "device": dev}
+            return APIResponse(status="success", data=d)
         except HTTPException:
             raise
         except Exception as e:
@@ -170,7 +165,15 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
                 tokens.append(token)
                 yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
 
-            yield f"event: sources\ndata: {json.dumps({'sources': []})}\n\n"
+            src_data = []
+            if req.use_rag and _scientist:
+                ans = _scientist.rag_engine.grounded_generate(req.query, profile=target_prof)
+                src_data = [
+                    {"doc_id": s.doc_id, "title": s.title, "snippet": s.snippet, "score": s.score}
+                    for s in ans.sources
+                ]
+
+            yield f"event: sources\ndata: {json.dumps({'sources': src_data})}\n\n"
             assembled = "".join(tokens)
             pipe = getattr(InferenceEngine, "_pipe", None)
             tokenizer = getattr(pipe, "tokenizer", None)
