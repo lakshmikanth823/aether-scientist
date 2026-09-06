@@ -7,14 +7,23 @@ def extract_topic(question: str) -> str:
     q = question.strip()
     # 1. Cut at second clause: and what|and how|and why|and which|or what
     q = re.split(r"(?i)\s+(?:and\s+(?:what|how|why|which)|or\s+what)\b", q)[0]
-    # 2. Strip leading question words and auxiliaries
+    # 2. Strip imperative openings: (can you )?(please )?(provide|summarize...) ... (of|about|on)
+    imperative_re = (
+        r"(?i)^\s*(?:can\s+you\s+)?(?:please\s+)?"
+        r"(?:provide|summarize|explain|describe|write|list|compare|analyze|analyse|discuss|give)\b"
+        r".*?\b(?:of|about|on)\s+"
+    )
+    q = re.sub(imperative_re, "", q).strip()
+    # 3. Strip leading question words and auxiliaries
     prefix_pattern = r"^(?:(?:what|how|why|which|when|where|is|are|do|does|did|can|could)\b\s*)+"
     topic = re.sub(prefix_pattern, "", q, flags=re.IGNORECASE).strip()
-    # 3. Strip trailing punctuation
+    # 3b. Re-check imperative opening after question words (e.g. "Can you explain...")
+    topic = re.sub(imperative_re, "", topic).strip()
+    # 4. Strip trailing punctuation
     topic = re.sub(r"[\?\.\!]+$", "", topic).strip()
-    # 4. Strip trailing lone verbs
+    # 5. Strip trailing lone verbs
     topic = re.sub(r"\b(?:work|works|mean|means)\b\s*$", "", topic, flags=re.IGNORECASE).strip()
-    # 5. Collapse whitespace
+    # 6. Collapse whitespace
     topic = re.sub(r"\s+", " ", topic).strip()
     return topic
 
@@ -25,9 +34,13 @@ def plan(question: str, k: int = 4) -> list[str]:
     if not topic:
         return [question]
 
+    is_plural = topic.lower().endswith("s") and not topic.lower().endswith("ics")
+    verb = "are" if is_plural else "is"
+    do_verb = "do" if is_plural else "does"
+
     templates = [
-        f"What is {topic}? (definition and background)",
-        f"How does {topic} work? (mechanisms and principles)",
+        f"What {verb} {topic}? (definition and background)",
+        f"How {do_verb} {topic} work? (mechanisms and principles)",
         f"What are applications of {topic}?",
         f"What are limitations and challenges of {topic}?",
     ]
