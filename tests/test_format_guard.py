@@ -65,3 +65,17 @@ def test_url_guard_replaces_when_majority_fabricated():
     assert "Insufficient evidence" in result
     assert "fabricate" in result
 
+
+def test_dangling_list_stub_trim():
+    """Dangling list stubs like ': 1.' or ' 1. **' should be trimmed cleanly."""
+    assert clean_output("This highlights key challenges: 1.") == "This highlights key challenges."
+    assert (
+        clean_output("This highlights key challenges: 1. **") == "This highlights key challenges."
+    )
+    assert clean_output("Summary of findings: 2.") == "Summary of findings."
+    assert clean_output("Recent developments:\n1.") == "Recent developments."
+    assert (
+        clean_output("A complete sentence. Next points: 1.")
+        == "A complete sentence."
+    )
+

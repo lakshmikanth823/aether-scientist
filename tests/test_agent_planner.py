@@ -60,3 +60,42 @@ def test_plan_llm_fallback_on_parse_failure():
     sq = plan_llm("What is graphene?", engine=BrokenEngine(), k=4)
     assert len(sq) == 4
     assert any("definition and background" in s for s in sq)
+
+
+def test_extract_topic_imperative_openings():
+    q = (
+        "Provide a highly detailed, 5-paragraph summary of the attention mechanism's "
+        "computational complexity..."
+    )
+    topic = extract_topic(q)
+    assert "attention mechanism" in topic
+
+    assert (
+        extract_topic("Please summarize the implications of CRISPR gene editing")
+        == "CRISPR gene editing"
+    )
+    assert (
+        extract_topic("Explain the role of mitochondria in cellular respiration")
+        == "mitochondria in cellular respiration"
+    )
+    assert extract_topic("Discuss the effects of ocean acidification") == "ocean acidification"
+    assert (
+        extract_topic("Can you please describe the principles on general relativity?")
+        == "general relativity"
+    )
+
+
+def test_plan_is_are_agreement():
+    # Topic ending in 's' (not 'ics') uses "are" / "do"
+    queries_plural = plan("What are neural networks?", k=4)
+    assert queries_plural[0].startswith("What are neural networks?")
+    assert queries_plural[1].startswith("How do neural networks work?")
+
+    # Topic ending in 'ics' uses "is" / "does"
+    queries_physics = plan("What is quantum mechanics?", k=4)
+    assert queries_physics[0].startswith("What is quantum mechanics?")
+    assert queries_physics[1].startswith("How does quantum mechanics work?")
+
+    # Singular topic uses "is" / "does"
+    queries_singular = plan("How does the transformer work?", k=4)
+    assert any(q.startswith("What is") for q in queries_singular)
