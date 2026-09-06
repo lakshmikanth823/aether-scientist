@@ -127,6 +127,9 @@ def clean_output(
         if earliest != -1:
             cleaned = cleaned[:earliest].strip()
 
+    # Pre-strip trailing number stubs so they don't trigger false charset collapse
+    cleaned = re.sub(r"\s*\d+\.\s*(?:\*\*)?\s*$", "", cleaned).strip()
+
     if detect_degenerate(cleaned):
         cut_pos = find_loop_cut_index(cleaned)
         cleaned = cleaned[:cut_pos].strip() if cut_pos is not None else ""
@@ -156,7 +159,7 @@ def clean_output(
 
     # Sentence trim: if text does not end in .!?, cut at last sentence and strip dangling tails
     if not cleaned.startswith("[Model produced degenerate"):
-        cleaned = re.sub(r"[\s*]*\d+[.):]?\s*\**$", "", cleaned).strip()
+        cleaned = re.sub(r"\s*\d+\.\s*(?:\*\*)?\s*$", "", cleaned).strip()
         if cleaned and cleaned[-1] not in ".!?":
             last_punct = -1
             for punct in [". ", "! ", "? "]:
@@ -165,6 +168,11 @@ def clean_output(
                     last_punct = p_idx
             if last_punct != -1:
                 cleaned = cleaned[: last_punct + 1].strip()
-        cleaned = re.sub(r"[\s*]*\d+[.):]?\s*\**$", "", cleaned).strip()
+
+        # After sentence trim, strip tails matching r"\s*\d+\.\s*(\*\*)?\s*$"
+        # and cut at trailing ":" preceding number stub ("...challenges: 1." -> "...challenges.")
+        cleaned = re.sub(r"\s*\d+\.\s*(?:\*\*)?\s*$", "", cleaned).strip()
+        if cleaned.endswith(":"):
+            cleaned = cleaned[:-1].strip() + "."
 
     return cleaned
