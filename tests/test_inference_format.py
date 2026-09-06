@@ -118,3 +118,58 @@ def test_inference_engine_generate_with_profile(monkeypatch):
     assert res["model"] == "HuggingFaceTB/SmolLM2-360M-Instruct"
     assert "### Extra commentary" not in res["text"]
     assert "Output for" in res["text"]
+
+
+def test_context_window_truncation_5000_words(monkeypatch):
+    """5000-word prompt -> truncated without error."""
+    InferenceEngine.reset()
+
+    class Config:
+        max_position_embeddings = 512
+
+    class Model:
+        config = Config()
+
+    class PipelineWithTokenizer:
+        model = Model()
+
+        class tokenizer:
+            @staticmethod
+            def encode(text):
+                return list(range(len(text.split())))
+
+            @staticmethod
+            def decode(tokens, **kwargs):
+                return " ".join(f"w{i}" for i in tokens)
+
+        def __call__(self, prompt, **kwargs):
+            words = prompt.split()
+            assert len(words) <= 512
+            return [{"generated_text": "Safe response after truncation."}]
+
+    monkeypatch.setattr(
+        InferenceEngine, "get", classmethod(lambda cls, model_name: PipelineWithTokenizer())
+    )
+
+    long_prompt = "word " * 5000
+    res = InferenceEngine.generate(prompt=long_prompt, profile="fast")
+    assert res is not None
+    assert "Safe response" in res["text"]
+
+
+def test_index_error_never_escapes_generate(monkeypatch):
+    """IndexError must be trapped and return clean truncated notice."""
+    InferenceEngine.reset()
+
+    class BuggyPipeline:
+        tokenizer = None
+
+        def __call__(self, prompt, **kwargs):
+            raise IndexError("position_ids index out of range")
+
+    monkeypatch.setattr(
+        InferenceEngine, "get", classmethod(lambda cls, model_name: BuggyPipeline())
+    )
+
+    res = InferenceEngine.generate(prompt="hello", profile="fast")
+    assert "[Context length exceeded" in res["text"]

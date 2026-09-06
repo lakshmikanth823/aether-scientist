@@ -88,6 +88,18 @@ class InferenceEngine:
         return clean_output(text, markers, profile_name=profile_name)
 
     @classmethod
+    def _resolve_context_limit(cls, pipe: Any) -> int:
+        """Resolve maximum position limit from model config, fallback 1024."""
+        model = getattr(pipe, "model", None)
+        config = getattr(model, "config", None) if model else None
+        limit = None
+        if config:
+            limit = getattr(config, "max_position_embeddings", None) or getattr(
+                config, "n_positions", None
+            )
+        return int(limit) if limit and isinstance(limit, (int, float)) else 1024
+
+    @classmethod
     def generate(
         cls,
         prompt: str = "",
@@ -98,12 +110,14 @@ class InferenceEngine:
         system_prompt: str = "",
         query: str = "",
     ) -> dict[str, Any]:
-        """Generate text with profile chat formatting, parameters, and output cleaning."""
+        """Generate response text with optional chat formatting and timing metrics."""
         start = time.perf_counter()
-        if profile is not None:
-            target_profile = resolve(
-                profile.name if isinstance(profile, ModelProfile) else profile
-            )
+        if isinstance(profile, ModelProfile):
+            target_profile = profile
+            model_to_use = target_profile.model
+            profile_name = target_profile.name
+        elif isinstance(profile, str) and profile in PROFILES:
+            target_profile = PROFILES[profile]
             model_to_use = target_profile.model
             profile_name = target_profile.name
         elif model_name in PROFILES:
@@ -129,6 +143,26 @@ class InferenceEngine:
                 tokenizer, target_profile, system=system_prompt, user=user_text
             )
 
+            # Context-window validation and prompt truncation
+            ctx_limit = cls._resolve_context_limit(pipe)
+            budget = max(16, ctx_limit - tokens_limit - 8)
+            if (
+                tokenizer is not None
+                and hasattr(tokenizer, "encode")
+                and hasattr(tokenizer, "decode")
+            ):
+                try:
+                    tokens = tokenizer.encode(formatted_prompt)
+                    if len(tokens) > budget:
+                        logger.warning(
+                            f"Prompt tokens ({len(tokens)}) exceed budget ({budget}). Truncating."
+                        )
+                        formatted_prompt = tokenizer.decode(
+                            tokens[:budget], skip_special_tokens=True
+                        )
+                except Exception as ex:
+                    logger.warning(f"Failed prompt truncation: {ex}")
+
             outputs = pipe(
                 formatted_prompt,
                 max_new_tokens=tokens_limit,
@@ -146,6 +180,16 @@ class InferenceEngine:
                 "model": model_to_use,
                 "profile": profile_name,
                 "tokens_generated": len(text.split()),
+                "elapsed_seconds": round(elapsed, 3),
+            }
+        except IndexError as e:
+            elapsed = time.perf_counter() - start
+            logger.warning(f"IndexError trapped in generate: {e}")
+            return {
+                "text": "[Context length exceeded. Output truncated.]",
+                "model": model_to_use,
+                "profile": profile_name,
+                "tokens_generated": 0,
                 "elapsed_seconds": round(elapsed, 3),
             }
         except Exception as e:
