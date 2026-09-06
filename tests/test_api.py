@@ -179,3 +179,43 @@ def test_research_stream_success(monkeypatch):
     assert "Decomposing" in response.text
     assert "# Report" in response.text
 
+
+def test_analyze_empty_index_returns_409(monkeypatch):
+    monkeypatch.setenv("AETHER_API_KEY", "test-key")
+    monkeypatch.setattr(
+        "aether_scientist.retrieval.store.VectorStore.__len__",
+        lambda self: 0,
+    )
+    client = TestClient(app)
+    headers = {"X-API-Key": "test-key"}
+    response = client.post(
+        "/analyze",
+        json={"query": "Explain gravity", "use_rag": True},
+        headers=headers,
+    )
+    assert response.status_code == 409
+    assert "No documents indexed" in response.text
+
+
+def test_analyze_mocked_index_error_returns_clean_500(monkeypatch):
+    monkeypatch.setenv("AETHER_API_KEY", "test-key")
+    from aether_scientist.core.model import AetherScientist
+
+    def fake_analyze(*args, **kwargs):
+        raise IndexError("Internal index error")
+
+    monkeypatch.setattr(AetherScientist, "analyze", fake_analyze)
+    client = TestClient(app)
+    headers = {"X-API-Key": "test-key"}
+    response = client.post(
+        "/analyze",
+        json={"query": "Explain gravity"},
+        headers=headers,
+    )
+    assert response.status_code == 500
+    data = response.json()
+    assert data["detail"] == "internal error"
+    assert "traceback" not in response.text.lower()
+    assert "IndexError" not in response.text
+
+
