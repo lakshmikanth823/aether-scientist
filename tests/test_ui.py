@@ -137,6 +137,30 @@ def test_knowledge_view_file_upload() -> None:
         assert "Indexed 1 docs" in at.success[0].value
 
 
+def test_knowledge_view_load_demo_corpus() -> None:
+    """Verify Load Demo Corpus button triggers indexing of demo_abstracts.txt."""
+    at = AppTest.from_file(APP_PATH, default_timeout=10)
+    at.run()
+    at.sidebar.radio[0].set_value("Knowledge Base").run()
+    assert not at.exception
+
+    demo_btn = [b for b in at.button if "Load Demo Corpus" in b.label]
+    assert len(demo_btn) > 0
+
+    mock_stats = IndexStats(
+        docs=1, chunks=3, elapsed_seconds=0.05, images_extracted=0, captions_generated=0
+    )
+    with patch(
+        "aether_scientist.retrieval.engine.RAGEngine.index",
+        return_value=mock_stats,
+    ) as mock_idx:
+        demo_btn[0].click().run()
+        assert not at.exception
+        assert len(at.success) > 0
+        assert "Indexed demo corpus" in at.success[0].value
+        mock_idx.assert_called_once_with(["data/demo_abstracts.txt"])
+
+
 def test_research_agent_dashboard() -> None:
     """Verify research agent executes streamed pipeline and renders report."""
     mock_res = ResearchResult(

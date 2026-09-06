@@ -48,6 +48,21 @@ def render_knowledge_view(rag_engine: RAGEngine) -> None:
                 )
                 st.success(msg)
 
+            st.divider()
+            if st.button("Load Demo Corpus"):
+                demo_path = Path("data/demo_abstracts.txt")
+                if demo_path.exists():
+                    with st.spinner("Indexing demo scientific corpus..."):
+                        stats = rag_engine.index([demo_path.as_posix()])
+                    if "demo_abstracts.txt" not in st.session_state.indexed_files:
+                        st.session_state.indexed_files.append("demo_abstracts.txt")
+                    st.success(
+                        f"Indexed demo corpus: {stats.docs} doc ({stats.chunks} chunks) "
+                        f"in {stats.elapsed_seconds}s!"
+                    )
+                else:
+                    st.error("Demo corpus data/demo_abstracts.txt not found.")
+
         with col_stat:
             st.metric("Total Chunks in Store", len(rag_engine.store))
             st.write("**Indexed Files:**")
