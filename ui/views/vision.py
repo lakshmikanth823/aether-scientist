@@ -19,7 +19,7 @@ def render_vision_view(caption_engine: CaptionEngine) -> None:
     if uploaded:
         col_img, col_cap = st.columns([1, 1])
         with col_img:
-            st.image(uploaded, caption=uploaded.name, use_container_width=True)
+            st.image(uploaded, caption=uploaded.name, width="stretch")
 
         with col_cap:
             if st.button("Analyze Diagram", type="primary"):
