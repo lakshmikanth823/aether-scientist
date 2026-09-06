@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.6.4] - 2026-09-06
+
+### Fixed
+- Stripped imperative query openings (`provide|summarize|explain... of|about|on`) in research planner topic extraction
+- Added grammatical is/are and does/do agreement in planner sub-question templates for plural topics
+- Trimmed dangling numbered list stubs (`: 1.`, ` 1. **`, etc.) and converted preceding trailing colons to periods
+- Pre-stripped number stubs before degenerate output detection to prevent false charset collapse triggers
+
 ## [1.6.3] - 2026-09-06
 
 ### Fixed
