@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.7.0] - 2026-09-06
+
+### Added
+- Streamlit Cloud and Hugging Face Spaces deployment readiness
+- Root `app.py` wrapper for zero-config cloud entry points
+- `.streamlit/config.toml` production theme and max upload size settings
+- `requirements.txt` cloud deployment specification
+- One-click "Load Demo Corpus" button in Knowledge Base UI with sample open-access abstracts (Transformer, BERT, CRISPR)
+- Hugging Face Spaces SDK metadata and deployment badges in `README.md`
+
 ## [1.6.4] - 2026-09-06
 
 ### Fixed
