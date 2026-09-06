@@ -108,8 +108,6 @@ class EmbeddingEngine:
             norm = np.linalg.norm(mat[i])
             if norm > 0:
                 mat[i] /= norm
-            else:
-                mat[i, 0] = 1.0
         return mat
 
     def embed(self, texts: list[str]) -> np.ndarray:

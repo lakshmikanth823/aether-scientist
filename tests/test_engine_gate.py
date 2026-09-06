@@ -42,6 +42,8 @@ def test_low_score_retrieval_never_calls_inference_engine(monkeypatch):
     assert not llm_called, "InferenceEngine must NOT be called when confidence < 0.35"
     assert "Insufficient evidence" in answer.answer
     assert "confidence 0.22" in answer.answer
+    assert answer.sources == []
+    assert len(answer.retrieval_diagnostic) == 1
 
 
 def test_fabricated_urls_sanitized():
@@ -57,3 +59,26 @@ def test_fabricated_urls_sanitized():
     fake_only = "http://hallucination1.com/link http://hallucination2.com/link"
     cleaned_fallback = clean_output(fake_only, source_snippets=["Clean context without links"])
     assert "Insufficient evidence" in cleaned_fallback
+
+
+def test_zero_overlap_query_stock_market(tmp_path):
+    """Index physics notes; query 'today's stock market prices' -> zero sources."""
+    doc = tmp_path / "physics.txt"
+    doc.write_text(
+        "Quantum mechanics and general relativity describe physical laws of nature.",
+        encoding="utf-8",
+    )
+
+    from aether_scientist.retrieval.embeddings import EmbeddingEngine
+
+    rag = RAGEngine(embedder=EmbeddingEngine(backend="tfidf", cache_dir=str(tmp_path / "c")))
+    rag.index([str(doc)])
+
+    # Test retrieve directly returns empty list for zero overlap
+    hits = rag.retrieve("today's stock market prices")
+    assert hits == []
+
+    # Test grounded generate returns zero rendered sources and insufficient evidence
+    ans = rag.grounded_generate("today's stock market prices")
+    assert ans.sources == []
+    assert "Insufficient evidence" in ans.answer

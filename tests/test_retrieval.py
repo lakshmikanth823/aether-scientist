@@ -249,6 +249,8 @@ def test_confidence_gate_skips_llm(monkeypatch):
     )
     assert "Insufficient evidence" in answer.answer
     assert answer.confidence == 0.22
+    assert answer.sources == []
+    assert len(answer.retrieval_diagnostic) == 1
     assert not llm_called, "LLM should NOT be called when confidence < 0.35"
 
 

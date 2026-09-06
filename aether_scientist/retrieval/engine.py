@@ -1,7 +1,7 @@
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +30,7 @@ class GroundedAnswer:
     sources: list[Source]
     confidence: float
     citations_valid: bool = True
+    retrieval_diagnostic: list[Source] = field(default_factory=list)
 
 
 @dataclass
@@ -106,10 +107,12 @@ class RAGEngine:
         """Retrieve top-k relevant chunks, deduped by (doc_id, chunk_id) and content hash."""
         target_k = k if k is not None else self.top_k
         query_vec = self.embedder.embed([query])
-        if query_vec.shape[0] == 0:
+        if query_vec.shape[0] == 0 or np.all(query_vec[0] == 0):
             return []
         candidate_k = max(target_k * 4, len(self.store))
         raw_hits = self.store.search(query_vec[0], k=candidate_k)
+        if not raw_hits or raw_hits[0].score < 0.05:
+            return []
 
         # Phase 1: dedup by (doc_id, chunk_id)
         seen: set[tuple[str, str]] = set()
@@ -180,13 +183,13 @@ class RAGEngine:
                     )
                 )
 
-
         if not hits:
             return GroundedAnswer(
-                answer="Insufficient evidence found in indexed literature.",
+                answer="Insufficient evidence in the indexed corpus (confidence 0.00).",
                 sources=[],
                 confidence=0.0,
                 citations_valid=True,
+                retrieval_diagnostic=[],
             )
 
         mean_score = float(np.mean([h.score for h in hits])) if hits else 0.0
@@ -197,9 +200,10 @@ class RAGEngine:
             msg = f"Insufficient evidence in the indexed corpus (confidence {confidence:.2f})."
             return GroundedAnswer(
                 answer=msg,
-                sources=sources,
+                sources=[],
                 confidence=confidence,
                 citations_valid=True,
+                retrieval_diagnostic=sources,
             )
 
         context_blocks = "\n\n".join(
