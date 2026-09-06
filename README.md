@@ -1,9 +1,23 @@
+---
+title: AetherScientist
+emoji: 🔬
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: "1.30.0"
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # AetherScientist
 
 Domain-specialized scientific research LLM framework with profile presets, chat formatting, RAG, citation grounding, and live streaming.
 
 [![PyPI version](https://img.shields.io/pypi/v/aether-scientist.svg)](https://pypi.org/project/aether-scientist/)
 [![CI](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml/badge.svg)](https://github.com/aetherscientist/aether-scientist/actions/workflows/ci.yml)
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://pypi.org/project/aether-scientist/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/aetherscientist/aether-scientist)
@@ -216,14 +230,23 @@ caption = CaptionEngine().caption("diagram.png")
 print("Caption:", caption)
 ```
 
-## 🌐 Interactive Web Interface
+## 🌐 Interactive Web Interface & Live Demo
 
-Launch the interactive Streamlit web dashboard for chat, RAG document indexing, live agent execution tracking, and diagram understanding:
+Launch the interactive Streamlit web dashboard locally or deploy to Streamlit Cloud / Hugging Face Spaces:
 
 ```bash
 pip install "aether-scientist[ui]"
-streamlit run ui/app.py
+
+# Run locally via root wrapper or direct path
+streamlit run app.py
 ```
+
+Features included in the web interface:
+- **Chat**: Conversational interface with profile switching (`offline`, `fast`, `balanced`, `quality`) and live token streaming.
+- **Knowledge Base & RAG**: Upload PDF/TXT/MD papers or click **"Load Demo Corpus"** for instant testing with classic NLP and CRISPR abstracts. Grounded Q&A with confidence gating.
+- **Research Agent**: Autonomous multi-step literature survey with iterative planning, retrieval, and cited Markdown report generation.
+- **Vision Tool**: Scientific figure and diagram captioning and inspection.
+
 > ![AetherScientist Web UI](docs/assets/ui-screenshot.png)
 
 ## 🗺️ Roadmap
