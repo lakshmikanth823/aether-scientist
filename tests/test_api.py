@@ -248,3 +248,23 @@ def test_analyze_stream_sources_event_with_rag(monkeypatch):
     assert response.status_code == 200
     assert "event: sources" in response.text
     assert "Paper 1" in response.text
+
+
+def test_roadmap_endpoints_return_501(monkeypatch):
+    monkeypatch.setenv("AETHER_API_KEY", "test-key")
+    client = TestClient(app)
+    headers = {"X-API-Key": "test-key"}
+
+    r1 = client.post(
+        "/synthesize", json={"domain": "physics", "paper_ids": ["p1"]}, headers=headers
+    )
+    assert r1.status_code == 501
+    assert "not implemented — on roadmap" in r1.json()["detail"]
+
+    r2 = client.post("/hypothesize", json={"observations": ["obs1"]}, headers=headers)
+    assert r2.status_code == 501
+    assert "not implemented — on roadmap" in r2.json()["detail"]
+
+    r3 = client.post("/experiment", json={"hypothesis": "hyp1"}, headers=headers)
+    assert r3.status_code == 501
+    assert "not implemented — on roadmap" in r3.json()["detail"]

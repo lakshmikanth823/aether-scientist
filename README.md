@@ -226,6 +226,13 @@ streamlit run ui/app.py
 ```
 > ![AetherScientist Web UI](docs/assets/ui-screenshot.png)
 
+## 🗺️ Roadmap
+
+The following advanced discovery capabilities are currently under active design for future releases:
+- `/synthesize`: Cross-domain literature synthesis and consensus mapping (`501 Not Implemented — on roadmap`).
+- `/hypothesize`: Automated scientific hypothesis generation from observation graphs (`501 Not Implemented — on roadmap`).
+- `/experiment`: Laboratory experiment design and protocol generation (`501 Not Implemented — on roadmap`).
+
 ## 📜 Contributing & License
 
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`

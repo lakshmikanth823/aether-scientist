@@ -239,20 +239,17 @@ def create_app(config: AetherConfig | None = None) -> FastAPI:
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-    @app.post("/synthesize", response_model=APIResponse, dependencies=auth)
-    async def synthesize(req: SynthesizeRequest) -> APIResponse:
-        d = {"synthesis": f"Synthesized for domain: {req.domain}"}
-        return APIResponse(status="success", data=d)
+    @app.post("/synthesize", dependencies=auth)
+    async def synthesize(req: SynthesizeRequest) -> None:
+        raise HTTPException(status_code=501, detail="not implemented — on roadmap")
 
-    @app.post("/hypothesize", response_model=APIResponse, dependencies=auth)
-    async def hypothesize(req: HypothesizeRequest) -> APIResponse:
-        d = {"hypothesis": "Generated hypothesis from observations."}
-        return APIResponse(status="success", data=d)
+    @app.post("/hypothesize", dependencies=auth)
+    async def hypothesize(req: HypothesizeRequest) -> None:
+        raise HTTPException(status_code=501, detail="not implemented — on roadmap")
 
-    @app.post("/experiment", response_model=APIResponse, dependencies=auth)
-    async def experiment(req: ExperimentRequest) -> APIResponse:
-        d = {"experiment_design": "Detailed experiment plan."}
-        return APIResponse(status="success", data=d)
+    @app.post("/experiment", dependencies=auth)
+    async def experiment(req: ExperimentRequest) -> None:
+        raise HTTPException(status_code=501, detail="not implemented — on roadmap")
 
     @app.get("/domains", response_model=APIResponse, dependencies=auth)
     async def get_domains() -> APIResponse:
