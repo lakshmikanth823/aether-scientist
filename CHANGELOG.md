@@ -3,6 +3,21 @@
 All notable changes to this project are documented here.
 Format follows Keep a Changelog; versioning follows SemVer.
 
+## [1.6.3] - 2026-09-06
+
+### Fixed
+- Out-of-vocabulary query handling: deleted artificial `mat[i, 0] = 1.0` fallback in `EmbeddingEngine`, keeping all-zero vector
+- Zero-vector / low-score retrieval: `RAGEngine.retrieve()` returns empty list `[]` when query vector is all-zero or top score < 0.05
+- Gated confidence sources: emptied `GroundedAnswer.sources` when confidence gate triggers, preserving raw hits in `retrieval_diagnostic`
+- Context-window validation: dynamically resolved model context limit in `InferenceEngine.generate()` with prompt truncation and `IndexError` guard
+- API error contracts: returned HTTP 409 Conflict when empty store is queried with RAG, and clean HTTP 500 without stack traces on unhandled exceptions
+- Benchmark citation metrics: computed honest citation validity rate based on `[n]` bracket presence; set to `None` in quiz mode
+- Streaming sources: emitted populated `sources` event payload in `/analyze/stream` when `use_rag=True`
+- Markdown section tracking: recorded preceding `#` and `##` headings in `Chunk.section` across ingestion and chunking
+- Multimodal error handling: provided distinguished error messages for missing vision dependencies vs model load failure
+- Roadmap routes: returned HTTP 501 Not Implemented on `/synthesize`, `/hypothesize`, and `/experiment` routes
+- Streamlit UI: updated `st.image` from deprecated `use_container_width=True` to `width="stretch"`
+
 ## [1.6.2] - 2026-09-05
 
 ### Fixed

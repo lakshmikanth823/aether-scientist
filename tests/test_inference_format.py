@@ -133,7 +133,7 @@ def test_context_window_truncation_5000_words(monkeypatch):
     class PipelineWithTokenizer:
         model = Model()
 
-        class tokenizer:
+        class Tokenizer:
             @staticmethod
             def encode(text):
                 return list(range(len(text.split())))
@@ -141,6 +141,8 @@ def test_context_window_truncation_5000_words(monkeypatch):
             @staticmethod
             def decode(tokens, **kwargs):
                 return " ".join(f"w{i}" for i in tokens)
+
+        tokenizer = Tokenizer()
 
         def __call__(self, prompt, **kwargs):
             words = prompt.split()
