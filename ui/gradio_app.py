@@ -101,8 +101,7 @@ def create_gradio_app() -> Any:
     profile_choices = [p["name"] for p in list_profiles()]
     default_p = "fast" if "fast" in profile_choices else profile_choices[0]
 
-    theme = gr.themes.Soft(primary_hue="blue")
-    with gr.Blocks(title="AetherScientist 🔬", theme=theme) as demo:
+    with gr.Blocks(title="AetherScientist 🔬") as demo:
         gr.Markdown(
             "# 🔬 AetherScientist\nDomain-specialized scientific research LLM with "
             f"RAG, citations & vision. Active compute: `{_detect_device()}`"
@@ -118,7 +117,6 @@ def create_gradio_app() -> Any:
                 gr.ChatInterface(
                     fn=chat_response,
                     additional_inputs=[p_drop, rag_toggle],
-                    type="messages",
                 )
 
             with gr.TabItem("📚 Knowledge Base"):
